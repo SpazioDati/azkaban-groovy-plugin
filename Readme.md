@@ -12,7 +12,7 @@ I think that Groovy can efficiently replace small as well as complex bash script
 - even if it's a script, you can declare dependencies inside the script itself, using Grape
 - it's jvm based, so if your company develops java libraries or applications, the script can directly interact with them
 - Groovy also embeds Ant (but in a json-fashion way) so IO tasks et simila are very easy to execute
-- Groovy also provides several facilities to manage external process, synch and piping
+- Groovy also provides several facilities to manage external process, synch and pipes
 - Using sshoogr https://github.com/aestasit/sshoogr , ssh/scp tasks are easy as well
 
 
