@@ -162,7 +162,7 @@ The script binding is the same as `GroovyProcess` job type, so limited to `confi
 
 A note about the working directory on remote machine. Using this plugin, the
 working directory is always the current directory for the groovy script, 
-because we prefix each ssh command with 'cd ${remote_dir}; '
+because we prefix each ssh command with `cd ${remote_dir}; `
 So the job setup process has to make sure that `working.dir` property is set to `./`
 Additionally, each value of the property containing a ref to the absolute path of the local
 working directory has to be updated with `./` for the same reason.
