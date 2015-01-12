@@ -63,6 +63,7 @@ public class GroovyJob extends AbstractProcessJob {
         } catch (Exception e) {
             throw new Exception("Bad property definition! " + e.getMessage(), e);
         }
+        int execid = jobProps.getInt("azkaban.flow.execid");
         
         Props preconditionProps = JobUtils.checkPreconditions(getId(), jobProps, getLog());
         if (preconditionProps != null) {
@@ -100,6 +101,8 @@ public class GroovyJob extends AbstractProcessJob {
             scriptVars.setVariable("props", jobProps);
             scriptVars.setVariable("config", PropsUtils.toStringMap(jobProps, false));
             scriptVars.setVariable("progress", progress);
+            scriptVars.setVariable("flowrunner", JobUtils.myFlowRunner(execid));
+            scriptVars.setVariable("jobrunner", JobUtils.myJobRunner(execid, getId()));
             scriptVars.setVariable("log", getLog());
             scriptVars.setProperty("out", new PrintStream(new StreamToLogger(getLog(), Level.INFO, "[groovy] ")));
             info("Setup done");
