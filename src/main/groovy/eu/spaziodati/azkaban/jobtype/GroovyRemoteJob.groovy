@@ -1,7 +1,10 @@
 package eu.spaziodati.azkaban.jobtype
 
+import azkaban.jobExecutor.AbstractProcessJob
 import azkaban.utils.Props
 import com.jcraft.jsch.JSch
+import eu.spaziodati.azkaban.JobUtils
+import eu.spaziodati.azkaban.Reflection
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.IOUtils
 import org.apache.log4j.Logger
@@ -70,6 +73,11 @@ class GroovyRemoteJob extends GroovyProcessJob {
             resolveProps()
         } catch (e) {
             throw new Exception("Bad property definition! " + e.getMessage(), e)
+        }
+        Props preconditionProps = JobUtils.checkPreconditions(getId(), jobProps, getLog());
+        if (preconditionProps != null) {
+            Reflection.set(AbstractProcessJob.class, this, "generatedProperties", preconditionProps);
+            return;
         }
 
 

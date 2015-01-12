@@ -4,17 +4,14 @@ import azkaban.jobExecutor.AbstractProcessJob;
 import azkaban.utils.Props;
 import azkaban.utils.PropsUtils;
 import eu.spaziodati.azkaban.GroovyResolversConfig;
+import eu.spaziodati.azkaban.JobUtils;
 import groovy.lang.Binding;
 import groovy.util.GroovyScriptEngine;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -49,10 +46,8 @@ public class GroovyJob extends AbstractProcessJob {
     public static final String FORWARD_PARAMETERS = "groovy.forwardParameters";
 
 
-    Logger mylog;
     public GroovyJob(String jobid, Props sysProps, Props jobProps, Logger log) {
         super(jobid, sysProps, new Props(sysProps, jobProps), log);
-        mylog = log;
     }
 
     AtomicReference<Double> progress = new AtomicReference<Double>(0.0);
@@ -67,6 +62,12 @@ public class GroovyJob extends AbstractProcessJob {
             resolveProps();
         } catch (Exception e) {
             throw new Exception("Bad property definition! " + e.getMessage(), e);
+        }
+        
+        Props preconditionProps = JobUtils.checkPreconditions(getId(), jobProps, getLog());
+        if (preconditionProps != null) {
+            resultProps = preconditionProps;
+            return;
         }
 
         final GroovyScriptEngine engine;
@@ -97,10 +98,10 @@ public class GroovyJob extends AbstractProcessJob {
             engine = new GroovyScriptEngine(urls);
             scriptVars = new Binding();
             scriptVars.setVariable("props", jobProps);
-            scriptVars.setVariable("config", flattenProps(jobProps));
+            scriptVars.setVariable("config", PropsUtils.toStringMap(jobProps, false));
             scriptVars.setVariable("progress", progress);
-            scriptVars.setVariable("log", mylog);
-            scriptVars.setProperty("out", new PrintStream(new StreamToLogger(mylog, Level.INFO, "[groovy] ")));
+            scriptVars.setVariable("log", getLog());
+            scriptVars.setProperty("out", new PrintStream(new StreamToLogger(getLog(), Level.INFO, "[groovy] ")));
             info("Setup done");
 
         } catch (Exception e) {
@@ -150,22 +151,22 @@ public class GroovyJob extends AbstractProcessJob {
             }
 
             boolean forwardParams = jobProps.getBoolean(FORWARD_PARAMETERS, false);
-            resultProps = new Props();
-            if (forwardParams) {
-                for (String k : jobProps.getKeySet()) {
-                    if (!k.startsWith("azkaban.") && !k.equals("working.dir")) {
-                        resultProps.put(k, jobProps.get(k));
-                    }
-                }
-            }
+            Props resultProps = new Props();
+            if (forwardParams)
+                resultProps = JobUtils.forwardParameters(jobProps);
+            
             
             boolean checkOutput = jobProps.getBoolean(CHECK_OUTPUT, false);
             if (result != null) {
                 if (result instanceof Props)
                     resultProps = new Props(resultProps, (Props)result);
-                else if (result instanceof Map)
-                    resultProps = new Props(resultProps,(Map)result);
-                else {
+                else if (result instanceof Map) {
+                    // convert any object to String
+                    Map resultmap = (Map) result;
+                    for (Object k : resultmap.keySet()) 
+                        resultmap.put(k, resultmap.get(k).toString());
+                    resultProps = new Props(resultProps, (Map) result);
+                } else {
                     if (checkOutput)
                         throw new Exception("Script didn't generate a valid output. (" + result.getClass() + "): " + result.toString());
                     else
@@ -178,7 +179,7 @@ public class GroovyJob extends AbstractProcessJob {
                     info("Script didn't generate output.");
             }
             Map flattenresult = PropsUtils.toStringMap(resultProps, false);
-            resultProps = new Props(null, flattenresult);
+            this.resultProps = new Props(null, flattenresult);
             
             
             progress.set(1.0);
@@ -212,11 +213,5 @@ public class GroovyJob extends AbstractProcessJob {
 
     }
 
-    static Properties flattenProps(Props props) throws IOException{
-        ByteArrayOutputStream tmpprops = new ByteArrayOutputStream();
-        props.storeFlattened(tmpprops);
-        Properties flattenProps = new Properties();
-        flattenProps.load(new StringReader(tmpprops.toString("8859_1")));
-        return flattenProps;
-    }
+
 }

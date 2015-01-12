@@ -28,6 +28,7 @@ import org.apache.ivy.util.Message;
 /**
  *
  */
+@SuppressWarnings("unchecked")
 public final class CredentialsStore {
     /**
      * A Map of Credentials objects keyed by the 'key' of the Credentials.

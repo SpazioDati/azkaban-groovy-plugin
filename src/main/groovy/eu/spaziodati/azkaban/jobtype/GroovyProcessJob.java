@@ -1,7 +1,11 @@
 package eu.spaziodati.azkaban.jobtype;
 
+import azkaban.jobExecutor.AbstractProcessJob;
 import azkaban.jobExecutor.JavaProcessJob;
 import azkaban.utils.Props;
+import azkaban.utils.PropsUtils;
+import eu.spaziodati.azkaban.JobUtils;
+import eu.spaziodati.azkaban.Reflection;
 import org.apache.log4j.Logger;
 
 import java.io.InputStream;
@@ -41,6 +45,14 @@ public class GroovyProcessJob extends JavaProcessJob {
 
     @Override
     public void run() throws Exception {
+
+        Props resolvedProps = PropsUtils.resolveProps(jobProps);
+        Props preconditionProps = JobUtils.checkPreconditions(getId(), resolvedProps, getLog());
+        if (preconditionProps != null) {
+            Reflection.set(AbstractProcessJob.class, this, "generatedProperties", preconditionProps);
+            return;
+        }
+
 
         try {
             Path tmp = Files.createTempFile(Paths.get(getWorkingDirectory()), "groovy-executor", ".jar");
