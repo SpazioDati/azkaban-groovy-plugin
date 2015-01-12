@@ -1,6 +1,8 @@
 # Azkaban Groovy Plugins
 
 This is a collection of plugins for Azkaban workflow manager, for running Groovy script as Azkaban job.
+It also includes a simple but very useful implementation of control flow management, such as 
+automatic skipping/disabling jobs based on property value. 
 
 ## Why Groovy?
 
@@ -175,3 +177,57 @@ user can easily create scenarios where that patch is not enough and
 script could die because of path-not-found errors. It's up to the user
 to make sure that the script doesn't rely on those properties.
 If the script always uses `${working.dir}`, it should be safe.
+
+## Control flow
+
+Execution of all jobs can be automatically skipped or disabled based on the value of certain properties.
+
+Before starting any operation on a certain job, this plugin checks the value of two properties
+
+ - `azkaban.flow.skip`
+ - `azkaban.flow.noop`
+
+These properties can be added in job definition, or dynamically created from the upstream job. 
+
+### Evaluation
+
+The evaluation of those properties is done as follows:
+
+ 1. plugin resolves property variables, applying standard substitution provided by Azkaban
+ 2. plugin tries to evaluate the value of the property as a Groovy statement. In this case the resulting object is used as raw value to parse. For the evaluation `config` variable is bind to the map containing input parameters (already resolved).
+ 3. if the evaluation succeeded, the result is parsed, otherwise the original value of the property is parsed
+   3.1. if the value is empty or null, return false
+   3.2. if the value is a number differnt than zero, return true
+   3.3. if equals (ignoring case) to `yes`,`y`,`true`,`t`,`ok`, return true
+   3.4. else return false
+
+
+### Skipping
+
+If `azkaban.flow.skip` is evaluted as `True`, than the current job is skipped. The status on Azkaban flow is set to 
+`SKIPPED` and all downstream jobs are set to `SKIPPED` as well. This means that final status of the flow will be `SKIPPED`.
+
+This property is very useful in a scenario like this: you have a workflow where you have to check something and based on that
+ you could create a remote EC2 instance and execute the rest of the job on that instance. You could split this flow in 3 jobs:
+ 
+ 1. check (`Groovy` or `GroovyProcess` job)
+ 2. create instance (`Groovy` job, because it has to register event handlers)
+ 3. do something (`GroovyRemote` job)
+ 
+so that *create instance* step could be re-used in other flows. But if the check fails (it doesn't mean that an error occurred
+but that the job is not required to run now), than you have to notify all downstream jobs to skip execution, and jobs must be
+aware that there's a property or something like that they must check at the beginning. This is very annoying, because all of
+your jobs should share the same logic, but for `GroovyRemote` job type is even impossible, because it runs on a remote
+server, and this may never exist!
+
+  
+### NOOP
+  
+If `azkaban.flow.noop` is evaluated as `True`, than the job is not executed, but the status of the job is set to 
+`SUCCESS`, that means that downstream jobs will be executed normally.
+If `groovy.forwardParameters` was set to `true`, than input parameters will be forwarded to the following job, as usual (see above).
+
+Note that this property is evaluated after `azkaban.flow.skip`.
+
+I still haven't found a scenario where this is really required... but I spent 2 minutes and 5 code lines more to implement this,
+so I decided to include this as well.

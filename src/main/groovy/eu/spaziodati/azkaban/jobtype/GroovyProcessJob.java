@@ -69,7 +69,8 @@ public class GroovyProcessJob extends JavaProcessJob {
         try {
             super.run();
         } finally {
-            Files.deleteIfExists(Paths.get(jarfile));
+            if (jarfile != null)
+                Files.deleteIfExists(Paths.get(jarfile));
         }
     }
 }
