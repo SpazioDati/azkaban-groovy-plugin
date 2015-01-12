@@ -72,7 +72,9 @@ The Groovy script is executed with the following bindings (ie you can reference 
   - `config` the properties of the job, contained in an simple and flat Map
   - `progress` a reference to an `AtomicReference<Double>`, initially set to 0, and that can be updated by the script to track the completion of the job: UI bar will be automatically updated. Value must be in the range `0.0 ... 1.0`.
   - `log` reference to `org.apache.log4j.Logger` used for the output of the job, useful to print exeception information and stacktrace. However, note that standard output of the script is automatically redirected to this Logger with level `INFO`.
-  
+  - `flowrunner` reference to `azkaban.execapp.FlowRunner` object that is managing this flow execution
+  - `jobrunner` reference to `azkaban.execapp.JobRunner` object that is managing this job execution
+
 One of the main advantages of this job type is the ability to interact with Azkaban configuration. 
 If used with caution, this can be very helpful. 
 For instance you can register event handler for the workflow, in order to execute cleanup operation when flow is completed.
@@ -83,21 +85,18 @@ but you want to make sure that the instance is delete when the job finishes, reg
 // import amazon sdk
 @Grab(group='com.amazonaws', module='aws-java-sdk-ec2', version='1.9.13') 
 import com.amazonaws.services.ec2.*
-import azkaban.*
 import azkaban.execapp.*
 import azkaban.execapp.event.*
 
-// config is the map containing job params
-def myflowid = config['azkaban.flow.flowid'] as int
-// getting FlowRunner object
-def myflow = AzkabanExecutorServer.app.flowRunnerManager.runningFlows.find { it.key == myflowid }.value
-
 // create ec2 instance using Amazon SDK and save a ref to the new instance
+
+// Eg. read an input parameter
+def instanceType = config['aws.instance.type']
 ...
 def instanceId = ....
 
 // register a cleanup-function when flow has finished
-myflow.addListener({ event ->
+flowrunner.addListener({ event ->
   
   if (event.type == Event.Type.FLOW_FINISHED) {
       
@@ -214,11 +213,12 @@ This property is very useful in a scenario like this: you have a workflow where 
  2. create instance (`Groovy` job, because it has to register event handlers)
  3. do something (`GroovyRemote` job)
  
-so that *create instance* step could be re-used in other flows. But if the check fails (it doesn't mean that an error occurred
+so that "*create instance*" step could be re-used in other flows. But if the check fails (it doesn't mean that an error occurred
 but that the job is not required to run now), than you have to notify all downstream jobs to skip execution, and jobs must be
 aware that there's a property or something like that they must check at the beginning. This is very annoying, because all of
 your jobs should share the same logic, but for `GroovyRemote` job type is even impossible, because it runs on a remote
-server, and this may never exist!
+server, and this may never exist! So in this case, it would be enough that first job set `azkaban.flow.skip` to `True` and
+all other jobs will be skipped.
 
   
 ### NOOP
