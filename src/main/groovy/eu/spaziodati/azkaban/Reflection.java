@@ -3,9 +3,6 @@ package eu.spaziodati.azkaban;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
-/**
- * Created by scaiella on 12/01/15.
- */
 public class Reflection {
     public static <T> T get(Class cc, String field) {
         return get(cc, null, field);

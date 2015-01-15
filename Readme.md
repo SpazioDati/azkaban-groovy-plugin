@@ -187,7 +187,7 @@ Before starting any operation on a certain job, this plugin checks the value of 
  - `azkaban.flow.skip`
  - `azkaban.flow.noop`
 
-These properties can be added in job definition, or dynamically created from the upstream job. 
+These properties can be added in job definition, or dynamically created by the upstream job. 
 
 ### Evaluation
 
@@ -196,11 +196,10 @@ The evaluation of those properties is done as follows:
  1. plugin resolves property variables, applying standard substitution provided by Azkaban
  2. plugin tries to evaluate the value of the property as a Groovy statement. In this case the resulting object is used as raw value to parse. For the evaluation `config` variable is bind to the map containing input parameters (already resolved).
  3. if the evaluation succeeded, the result is parsed, otherwise the original value of the property is parsed
-   3.1. if the value is empty or null, return false
-   3.2. if the value is a number differnt than zero, return true
-   3.3. if equals (ignoring case) to `yes`,`y`,`true`,`t`,`ok`, return true
-   3.4. else return false
-
+    1. if the value is empty or null, return false
+    2. if the value is a number differnt than zero, return true
+    3. if equals (ignoring case) to `yes`,`y`,`true`,`t`,`ok`, return true
+    4. else return false
 
 ### Skipping
 
@@ -229,5 +228,25 @@ If `groovy.forwardParameters` was set to `true`, than input parameters will be f
 
 Note that this property is evaluated after `azkaban.flow.skip`.
 
-I still haven't found a scenario where this is really required... but I spent 2 minutes and 5 code lines more to implement this,
-so I decided to include this as well.
+This can be useful if you have a flow like this:
+
+```
+       [main]
+     /    |  \
+  [J1]  [J2] [J3]
+    |     |    |  
+  [J1b]   |  [J3b]
+     \    |   /
+     [job.join]
+```
+
+Say you are on job `main` and want to select which downstream job has to be executed.
+This job can output a property like `main.todo=J3,J2`. Then all other jobs can be configured with 
+```
+groovy.forwardParameters=true
+azkaban.flow.noop="${main.todo}".split(',').find { "${azkaban.flow.flowid}".startsWith(it) } == null
+```
+this way `J1` and `J1b` won't run, but their status will be set to `SUCCESS` so that `job.join` will be correctly executed when `J2` and `J3b` will finish.
+`groovy.forwardProperties` is required to let `main.todo` be passed to downstream jobs.
+
+These check could be implemented in the job script itself, but as mentioned above, for `RemoteGroovy` job this is not possible, and also for other job types, you don't have to change the logic of the script that maybe is used in different flows.
