@@ -5,6 +5,7 @@ import azkaban.utils.Props
 import com.jcraft.jsch.JSch
 import eu.spaziodati.azkaban.JobUtils
 import eu.spaziodati.azkaban.Reflection
+import groovy.io.FileType
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.IOUtils
 import org.apache.log4j.Logger
@@ -21,6 +22,8 @@ import static com.aestasit.infrastructure.ssh.DefaultSsh.*
 
 import java.nio.file.Files
 import java.nio.file.Paths
+
+import static groovy.io.FileType.FILES
 
 class GroovyRemoteJob extends GroovyProcessJob {
 
@@ -174,21 +177,29 @@ class GroovyRemoteJob extends GroovyProcessJob {
                         from {
                             //we have to exclude the log files, otherwise they will be replaced
                             //when results are copied back from remote
-                            new File(getWorkingDirectory()).listFiles({
-                                dir, name ->
-                                    ! ( name ==~ /_(flow|job)\..+\.log/ ) &&
-                                    ! ( name ==~ /java-installer.*/ )
-                            } as FilenameFilter).each {
-                                if (it.isDirectory())
-                                    localDir(it)
-                                else
-                                    localFile(it)
+//                            new File(getWorkingDirectory()).listFiles({
+//                                dir, name ->
+//                                    ! ( name ==~ /_(flow|job)\..+\.log/ ) &&
+//                                    ! ( name ==~ /java-installer.*/ )
+//                            } as FilenameFilter).each {
+//                                if (it.isDirectory())
+//                                    localDir(it)
+//                                else
+//                                    localFile(it)
+//                            }
+                    scp {
+                        from {
+                            new File(getWorkingDirectory()).traverse(
+                                type: FileType.FILES,
+                                excludeNameFilter: ~/(_(flow|job)\..+\.log|java-installer.*)/
+                            ) {
+                                localFile(it)
                             }
                         }
                         into { remoteDir(config[REMOTE_DIR]) }
                     }
 
-                    // check java installation
+                            // check java installation
                     def javacheck = exec(failOnError: false, command: 'java -version')
                     if (javacheck.exitStatus != 0) {
                         info("No java installation found, now installing")
