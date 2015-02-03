@@ -11,6 +11,7 @@ import org.apache.commons.io.IOUtils
 import org.apache.log4j.Logger
 
 import java.nio.charset.StandardCharsets
+import java.nio.file.CopyOption
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.util.concurrent.Callable
@@ -173,8 +174,6 @@ class GroovyRemoteJob extends GroovyProcessJob {
                     }
 
                     // uploading working dir
-                    scp {
-                        from {
                             //we have to exclude the log files, otherwise they will be replaced
                             //when results are copied back from remote
 //                            new File(getWorkingDirectory()).listFiles({
@@ -187,13 +186,24 @@ class GroovyRemoteJob extends GroovyProcessJob {
 //                                else
 //                                    localFile(it)
 //                            }
+                    info ("Making a copy of files to be uploaded...")
+                    def tempdir = Files.createTempDirectory("groovy_remote_job")
+                    //we have to exclude the log files, otherwise they will be replaced
+                    //when results are copied back from remote
+                    FileUtils.copyDirectory(new File(getWorkingDirectory()), tempdir.toFile(), {
+                        file ->
+                            ! ( file.name ==~ /_(flow|job)\..+\.log/ ) &&
+                            ! ( file.name ==~ /java-installer.*/ )
+                    } as FileFilter)
+
+                    info ("Copying files remotely...")
                     scp {
                         from {
                             new File(getWorkingDirectory()).traverse(
-                                type: FileType.FILES,
+                                type: FILES,
                                 excludeNameFilter: ~/(_(flow|job)\..+\.log|java-installer.*)/
                             ) {
-                                localFile(it)
+                                localDir(tempdir.toFile())
                             }
                         }
                         into { remoteDir(config[REMOTE_DIR]) }
