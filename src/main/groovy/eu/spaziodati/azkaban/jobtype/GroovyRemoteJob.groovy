@@ -40,6 +40,7 @@ class GroovyRemoteJob extends GroovyProcessJob {
     static final REMOTE_DIR = "groovy.remote.working.dir"
     static final VERBOSE = "groovy.remote.verbose"
     static final JAVA_INSTALLER = "groovy.remote.javaInstaller"
+    static final SUDO_JAVA_INSTALLER = "groovy.remote.sudo.javaInstaller"
     static final SUDO = "groovy.remote.sudo"
 
 
@@ -97,6 +98,7 @@ class GroovyRemoteJob extends GroovyProcessJob {
             config[JAVA_INSTALLER] = jobProps.getString(JAVA_INSTALLER, null)
             config[SUDO] = jobProps.getBoolean(SUDO, false)
             config[VERBOSE] = jobProps.getBoolean(VERBOSE, true)
+            config[SUDO_JAVA_INSTALLER] = jobProps.getBoolean(SUDO_JAVA_INSTALLER, true)
 
             if (!config[PASSWORD] && !config[KEY_FILE]) throw new Exception("No password nor key file has been defined")
 
@@ -171,21 +173,10 @@ class GroovyRemoteJob extends GroovyProcessJob {
                     //create remote working dir
                     prefix(config[SUDO] ? "sudo " : "") {
                         exec "mkdir -p ${config[REMOTE_DIR]}"
+                        if (config[SUDO])
+                            exec "chmod 777 ${config[REMOTE_DIR]}"
                     }
 
-                    // uploading working dir
-                            //we have to exclude the log files, otherwise they will be replaced
-                            //when results are copied back from remote
-//                            new File(getWorkingDirectory()).listFiles({
-//                                dir, name ->
-//                                    ! ( name ==~ /_(flow|job)\..+\.log/ ) &&
-//                                    ! ( name ==~ /java-installer.*/ )
-//                            } as FilenameFilter).each {
-//                                if (it.isDirectory())
-//                                    localDir(it)
-//                                else
-//                                    localFile(it)
-//                            }
                     info ("Making a copy of files to be uploaded...")
                     def tempdir = Files.createTempDirectory("groovy_remote_job")
                     //we have to exclude the log files, otherwise they will be replaced
@@ -215,15 +206,19 @@ class GroovyRemoteJob extends GroovyProcessJob {
                         info("No java installation found, now installing")
                         if (!config[JAVA_INSTALLER]) {
                             info ("Using default java installer")
-                            config[JAVA_INSTALLER] = extractEmbeddedJavaInstaller()
+                            def embeddedInstaller = extractEmbeddedJavaInstaller()
+                            scp {
+                                from { localFile embeddedInstaller }
+                                into { remoteFile "${config[REMOTE_DIR]}/.java-installer.sh" }
+                            }
+                            config[JAVA_INSTALLER] = ".java-installer.sh"
+                            
                         } else info ("Java installer: "+config[JAVA_INSTALLER])
 
-                        scp {
-                            from { localFile config[JAVA_INSTALLER] }
-                            into { remoteFile "${config[REMOTE_DIR]}/java-installer.sh" }
-                        }
-                        exec "/bin/bash java-installer.sh"
-                        exec "rm -f java-installer.sh"
+                        if (!config[SUDO] && config[SUDO_JAVA_INSTALLER])
+                            exec "sudo /bin/bash ${config[JAVA_INSTALLER]}"
+                        else 
+                            exec "/bin/bash ${config[JAVA_INSTALLER]}"
                     }
 
                     // create launcher script

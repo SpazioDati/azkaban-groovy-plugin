@@ -156,7 +156,8 @@ This job accepts also:
  - `groovy.remote.password` the password, must be set if `groovy.remote.keyFile` is not set
  - `groovy.remote.keyFile` the path of file containing the ssh key, must be set if `groovy.remote.password` is not set
  - `groovy.remote.working.dir` the working directory on the remote machine, is create if not found. By default is set to `/tmp/azkaban-{azkaban-flowid}-{azkaban.execid}`. If you change this, recall that once the job finishes, the content of the folder is copied back to the local machine, so make sure that directory on remote server doesn't contain huge unwanted files.
- - `groovy.remote.javaInstaller` the path of the file containing a script required for installing JVM on-the-fly, if necessary. By default the plugin deploys a shell script embedded in this jar for installing Oracle JVM version 7 using `apt-get`.
+ - `groovy.remote.javaInstaller` the path (relative to the working dir) of the file containing a script required for installing JVM on-the-fly, if necessary. By default the plugin deploys a shell script embedded in this jar for installing Oracle JVM version 7 using `apt-get`.
+ - `groovy.remote.sudo.javaInstaller` (*default*: `true`) if set to true, the `javaInstaller` will be executed with `sudo`
  - `groovy.remote.sudo` (*default*: `false`) if set to true, any command executed to the remote machine will be prefixed with `sudo`
 
 The script binding is the same as `GroovyProcess` job type, so limited to `config` variable.
