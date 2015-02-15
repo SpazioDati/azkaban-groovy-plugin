@@ -110,7 +110,14 @@ return [ 'aws.instance.host' : '.....'] // result of the script must be a map an
 
 ```
 
-*Note*: the `groovy.resolver.<name>` properties couldn't be fetched correctly if some other plugins of your 
+*Note*: when using the event type `Event.Type.FLOW_FINISHED`, everything logged and printed in that handler, 
+is not available in the logs. For this reason, Azkaban 2.5 has been patched by Spaziodati, so that the `flowrunner` raises
+ also an event with name `FLOW_ON_FINISH` just before closing logger.
+Additionally, since that code is executed at the end of the flow, the `log` object is not available (because that 
+logger is binded to the jobrunner), so user should use `flowrunner.logger` logger to output result of 
+event handler.
+
+*Note2*: the `groovy.resolver.<name>` properties couldn't be fetched correctly if some other plugins of your 
 Azkaban installation is linking Ivy.
 This because I had to change the implementation of org.apache.ivy.util.url.CredentialsStore and 
 if the class has been already loaded because of some other plugin, the patch
