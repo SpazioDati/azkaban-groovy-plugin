@@ -22,7 +22,9 @@ public class Reflection {
             throw new RuntimeException(e);
         }
     }
-    
+    public static void set(Object instance, String field, Object value) {
+        set(instance.getClass(), instance, field, value);
+    }
     public static void set(Class<?> clazz, Object instance, String field, Object value) {
         try {
             Field f = clazz.getDeclaredField(field);
@@ -30,7 +32,7 @@ public class Reflection {
 
             Field modifiersField = Field.class.getDeclaredField("modifiers");
             modifiersField.setAccessible(true);
-            modifiersField.setInt(field, f.getModifiers() & ~Modifier.FINAL);
+            modifiersField.setInt(f, f.getModifiers() & ~Modifier.FINAL);
 
             f.set(instance, value);
             
@@ -38,4 +40,6 @@ public class Reflection {
             throw new RuntimeException(e);
         }
     }
+
+    
 }

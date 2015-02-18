@@ -1,5 +1,7 @@
 package eu.spaziodati.azkaban.jobtype;
 
+import azkaban.execapp.FlowRunner;
+import azkaban.execapp.JobRunner;
 import azkaban.jobExecutor.AbstractProcessJob;
 import azkaban.utils.Props;
 import azkaban.utils.PropsUtils;
@@ -10,8 +12,11 @@ import groovy.util.GroovyScriptEngine;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
-import java.io.*;
-import java.util.*;
+import java.io.File;
+import java.io.PrintStream;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -96,13 +101,17 @@ public class GroovyJob extends AbstractProcessJob {
             info("Classpath for Groovy script: "+Arrays.toString(urls));
 
             info("Creating engine...");
+            FlowRunner flowRunner = JobUtils.myFlowRunner(execid);
+            JobRunner jobRunner = JobUtils.myJobRunner(execid, getId());
+            
             engine = new GroovyScriptEngine(urls);
             scriptVars = new Binding();
             scriptVars.setVariable("props", jobProps);
             scriptVars.setVariable("config", PropsUtils.toStringMap(jobProps, false));
             scriptVars.setVariable("progress", progress);
-            scriptVars.setVariable("flowrunner", JobUtils.myFlowRunner(execid));
-            scriptVars.setVariable("jobrunner", JobUtils.myJobRunner(execid, getId()));
+            scriptVars.setVariable("flowrunner", flowRunner);
+            scriptVars.setVariable("onfinish", new FlowRunnerFinishHandler(flowRunner, jobRunner));
+            scriptVars.setVariable("jobrunner", jobRunner);
             scriptVars.setVariable("log", getLog());
             scriptVars.setProperty("out", new PrintStream(new StreamToLogger(getLog(), Level.INFO, "[groovy] ")));
             info("Setup done");

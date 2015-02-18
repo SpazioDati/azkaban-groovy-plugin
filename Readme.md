@@ -38,7 +38,8 @@ Deployment
  
 Then restart Azkaban server
 
-*Note*: If you use the `Groovy` jobtype, I strongly recommend to set the JVM properties for Azkaben server process as described here: http://groovy.codehaus.org/Running#Running-AvoidingPermGenoutofmemory 
+*Note*: If you use the `Groovy` jobtype, I strongly recommend to increase significantly the PermGen space (hundreds of MBs) and
+to set the JVM properties for Azkaban server process as described here: http://groovy.codehaus.org/Running#Running-AvoidingPermGenoutofmemory 
 
 ## Jobtypes
 
@@ -74,6 +75,7 @@ The Groovy script is executed with the following bindings (ie you can reference 
   - `log` reference to `org.apache.log4j.Logger` used for the output of the job, useful to print exeception information and stacktrace. However, note that standard output of the script is automatically redirected to this Logger with level `INFO`.
   - `flowrunner` reference to `azkaban.execapp.FlowRunner` object that is managing this flow execution
   - `jobrunner` reference to `azkaban.execapp.JobRunner` object that is managing this job execution
+  - `onfinish` reference to flow finish event handler, that has a single method `register(Closure)` that excecute the closure when flow finishes. If an error is raised by the closure, the status of the flow is set to `FAILED`
 
 One of the main advantages of this job type is the ability to interact with Azkaban configuration. 
 If used with caution, this can be very helpful. 
@@ -96,26 +98,24 @@ def instanceType = config['aws.instance.type']
 def instanceId = ....
 
 // register a cleanup-function when flow has finished
-flowrunner.addListener({ event ->
+onfinish.register {
   
-  if (event.type == Event.Type.FLOW_FINISHED) {
-      
      // cleanup ec2 instance using instanceId
+     flowrunner.logger.info "Cleanup function"
      ...
-
-  }
-} as EventListener )
+}
 
 return [ 'aws.instance.host' : '.....'] // result of the script must be a map and it is used as output of the job
 
 ```
 
-*Note*: when using the event type `Event.Type.FLOW_FINISHED`, everything logged and printed in that handler, 
-is not available in the logs. For this reason, Azkaban 2.5 has been patched by Spaziodati, so that the `flowrunner` raises
- also an event with name `FLOW_ON_FINISH` just before closing logger.
-Additionally, since that code is executed at the end of the flow, the `log` object is not available (because that 
-logger is binded to the jobrunner), so user should use `flowrunner.logger` logger to output result of 
-event handler.
+*Note*: To register execution of function when flow finishes, you could use `flowrunner.addEventListener` and waiting for    
+event type `Event.Type.FLOW_FINISHED`. This is correct but when Azkaban executes that code, the logger of the `FlowRunner` 
+has been already closed, so any message printed by the listener will be hidden. Additionally, if an exception is 
+thrown during the execution of the listener, no message will be printed and status of the flow won't be affected.
+So you should always use `onfinish.register` that already manages this scenario.
+However, always recall to use `flowrunner.logger` to print message inside that closure, because the `log` object is bind
+to the logger of the job, and most likely that logget has been already closed when the flow is going to finish.
 
 *Note2*: the `groovy.resolver.<name>` properties couldn't be fetched correctly if some other plugins of your 
 Azkaban installation is linking Ivy.
