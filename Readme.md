@@ -50,7 +50,8 @@ in file referenced by `JOB_OUTPUT_PROP_FILE` environment variable.
 
 All types of jobs can accepts the following properties:
 
-  - `groovy.script` (*required*) the path of the groovy script file, relative to the working directory 
+  - `groovy.script` (*required*) the path of the groovy script file, relative to the working directory. Note that
+  job type `Groovy` also supports for commands in job definition that can replace this configuration.
   - `groovy.classpath` the list of path (separated by `:`) of folders containing other Groovy scripts or
   class definitions that maybe referenced by the main script. The current working directory is always added to this list,
   automatically
@@ -74,12 +75,15 @@ All types of jobs can accepts the following properties:
 
 This is a job that can execute a groovy script in the same JVM of Azkaban executor.
 The script is executed asynchronosly and cancel operation is fully supported, 
-so it should not be a concern for Azkaban stability. 
+so it should not be a concern for Azkaban server stability.
 
 This job accepts also:
 
+  - `groovy.command` or `groovy.command.<n>` that can be used instead of the `groovy.script` parameter.
+  If `groovy.script` is not defined, the plugin will execute the command/s provided using this property/es.
+  `<n>` can be any string, in case you need multiple lines. Lines are then sorted using alphabetic ordering on
+  `<n>` values.
   - `groovy.timeout` (*default:* `0`) timeout for the script in seconds. If less than 1, timeout is disabled.
-
 
 *Note*: the `groovy.resolver.<name>` properties couldn't be fetched correctly if some other plugins of your
 Azkaban installation is linking Ivy.

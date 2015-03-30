@@ -9,14 +9,13 @@ import eu.spaziodati.azkaban.GroovyResolversConfig;
 import eu.spaziodati.azkaban.JobUtils;
 import groovy.lang.Binding;
 import groovy.util.GroovyScriptEngine;
+import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import java.io.File;
 import java.io.PrintStream;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -38,6 +37,10 @@ public class GroovyJob extends AbstractProcessJob {
      * listed in the classpath (see property above). Mandatory property
      */
     public static final String SCRIPT = "groovy.script";
+    /**
+     * The groovy script command, alternative to SCRIPT
+     */
+    public static final String COMMAND = "groovy.command";
     /**
      * The timeout for the groovy job, in seconds. If less than 1,
      * it is disabled. By default is 0, means no timeout.
@@ -78,13 +81,41 @@ public class GroovyJob extends AbstractProcessJob {
 
         final GroovyScriptEngine engine;
         final Binding scriptVars;
-        final String scriptFile;
+        String scriptFile;
+        List<String> commands = new ArrayList<>();
         int timeout;
         try {
             File wd = new File(getWorkingDirectory());
             info("Current working dir: "+wd.getAbsolutePath());
 
-            scriptFile = jobProps.getString(SCRIPT);
+            Map<String, String> commandmap = jobProps.getMapByPrefix(COMMAND);
+            if (commandmap.size() > 0)
+                scriptFile = jobProps.getString(SCRIPT, null);
+            else {
+                scriptFile = jobProps.getString(SCRIPT);
+                info("Using script: "+scriptFile);
+            }
+
+            if (scriptFile == null) {
+
+                List<Map.Entry<String, String>> entrylist = new ArrayList<>(commandmap.entrySet());
+                Collections.sort(entrylist, new Comparator<Map.Entry<String, String>>() {
+                    @Override
+                    public int compare(Map.Entry<String, String> o1, Map.Entry<String, String> o2) {
+                        return o1.getKey().compareTo(o2.getKey());
+                    }
+                });
+                String commandstring = "";
+                for (Map.Entry<String, String> entry : entrylist) {
+                    commands.add(entry.getValue());
+                    commandstring += entry.getValue() +'\n';
+                }
+                info ("Using command list:\n"+commandstring);
+                File fscript = new File(wd, System.currentTimeMillis()+".groovy");
+                FileUtils.writeLines(fscript, "UTF-8", commands);
+                scriptFile = fscript.getName();
+            }
+
             timeout = jobProps.getInt(TIMEOUT, 0);
 
             String cp = jobProps.getString(CLASSPATH, "");
@@ -142,12 +173,13 @@ public class GroovyJob extends AbstractProcessJob {
         long startMS = System.currentTimeMillis();
         try {
             info("Launching script...");
+            final String finalScriptFile = scriptFile;
             task = executor.submit(new Callable<Object>() {
                 @Override
                 public Object call() throws Exception {
                     GroovyResolversConfig config = GroovyResolversConfig.fromMap(allproperties);
                     try {
-                        return engine.run(scriptFile, scriptVars);
+                        return engine.run(finalScriptFile, scriptVars);
                     } finally {
                         config.restore();
                     }
