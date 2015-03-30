@@ -5,11 +5,11 @@ import azkaban.execapp.JobRunner;
 import azkaban.jobExecutor.AbstractProcessJob;
 import azkaban.utils.Props;
 import azkaban.utils.PropsUtils;
+import eu.spaziodati.azkaban.AzkabanGroovyRunner;
 import eu.spaziodati.azkaban.GroovyResolversConfig;
 import eu.spaziodati.azkaban.JobUtils;
 import groovy.lang.Binding;
 import groovy.util.GroovyScriptEngine;
-import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
@@ -97,23 +97,9 @@ public class GroovyJob extends AbstractProcessJob {
             }
 
             if (scriptFile == null) {
-
-                List<Map.Entry<String, String>> entrylist = new ArrayList<>(commandmap.entrySet());
-                Collections.sort(entrylist, new Comparator<Map.Entry<String, String>>() {
-                    @Override
-                    public int compare(Map.Entry<String, String> o1, Map.Entry<String, String> o2) {
-                        return o1.getKey().compareTo(o2.getKey());
-                    }
-                });
-                String commandstring = "";
-                for (Map.Entry<String, String> entry : entrylist) {
-                    commands.add(entry.getValue());
-                    commandstring += entry.getValue() +'\n';
-                }
-                info ("Using command list:\n"+commandstring);
-                File fscript = new File(wd, System.currentTimeMillis()+".groovy");
-                FileUtils.writeLines(fscript, "UTF-8", commands);
-                scriptFile = fscript.getName();
+                StringBuilder scriptlog = new StringBuilder();
+                scriptFile = AzkabanGroovyRunner.createScriptFromCommand(commandmap, wd, scriptlog);
+                info(scriptlog.toString());
             }
 
             timeout = jobProps.getInt(TIMEOUT, 0);

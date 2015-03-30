@@ -28,17 +28,20 @@ public class GroovyProcessJob extends JavaProcessJob {
 
     protected String jarfile = null;
 
-
     @Override
     protected String getJavaClass() {
         return "eu.spaziodati.azkaban.AzkabanGroovyRunner";
     }
 
+    // to avoid multiple calls to super.getClassPaths()
+    // that generates fucking logging lines each time is called!
+    protected List<String> paths = null;
+
     // this is called in super.run().
     // see JavaProcessJob and ProcessJob
     @Override
     protected List<String> getClassPaths() {
-        List<String> paths = super.getClassPaths();
+        if (paths == null) paths = super.getClassPaths();
         if (!paths.contains(jarfile)) paths.add(jarfile);
         return paths;
     }
@@ -52,7 +55,6 @@ public class GroovyProcessJob extends JavaProcessJob {
             Reflection.set(AbstractProcessJob.class, this, "generatedProperties", preconditionProps);
             return;
         }
-
 
         try {
             Path tmp = Files.createTempFile(Paths.get(getWorkingDirectory()), "groovy-executor", ".jar");
@@ -73,4 +75,6 @@ public class GroovyProcessJob extends JavaProcessJob {
                 Files.deleteIfExists(Paths.get(jarfile));
         }
     }
+
+
 }

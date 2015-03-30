@@ -11,8 +11,7 @@ import azkaban.utils.PropsUtils;
 import groovy.util.Eval;
 import org.apache.log4j.Logger;
 
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Pattern;
 
 public class JobUtils {
@@ -64,14 +63,14 @@ public class JobUtils {
 
         Props newprops = new Props();
         for (String k : jobProps.getKeySet()) {
-            if (!k.startsWith("azkaban.") && !k.equals("working.dir")) {
+            if (!AzkabanGroovyRunner.isReservedKey(k)) {
                 newprops.put(k, jobProps.get(k));
             }
         }
         return newprops;
 
     }
-    
+
     static boolean isTrue(String raw, Props props, Logger log, String jobname) {
 
         if (raw != null) {
@@ -94,22 +93,22 @@ public class JobUtils {
             result = Eval.me("config", cfg, raw);
             log.info("Evaluation using code...");
         } catch (Exception e) {}
-        
+
         if (result != null) {
             if (result instanceof Boolean) return (Boolean) result;
             if (result instanceof Integer) return ((Integer)result) != 0;
             if (result instanceof Long) return ((Long)result) != 0;
             if (result instanceof String) raw = (String)result;
         }
-        
-        if (raw == null || raw.length() == 0) 
+
+        if (raw == null || raw.length() == 0)
             return false;
 
         log.info("Evaluation using literal...");
         try {
             return Integer.parseInt(raw) != 0;
         } catch (Exception e){}
-        
+
         return "true".equalsIgnoreCase(raw) || "yes".equalsIgnoreCase(raw) ||
                 "ok".equalsIgnoreCase(raw) || "y".equalsIgnoreCase(raw) ||
                 "t".equalsIgnoreCase(raw);

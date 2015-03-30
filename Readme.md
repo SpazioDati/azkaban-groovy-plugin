@@ -50,8 +50,12 @@ in file referenced by `JOB_OUTPUT_PROP_FILE` environment variable.
 
 All types of jobs can accepts the following properties:
 
-  - `groovy.script` (*required*) the path of the groovy script file, relative to the working directory. Note that
+  - `groovy.script` (*required* or use `groovy.command`) the path of the groovy script file, relative to the working directory. Note that
   job type `Groovy` also supports for commands in job definition that can replace this configuration.
+  - `groovy.command` or `groovy.command.<n>` that can be used instead of the `groovy.script` parameter.
+  If `groovy.script` is not defined, the plugin will execute the command/s provided using this property/es.
+  `<n>` can be any string, in case you need multiple lines. Lines are then sorted using alphabetic ordering on
+  `<n>` values.
   - `groovy.classpath` the list of path (separated by `:`) of folders containing other Groovy scripts or
   class definitions that maybe referenced by the main script. The current working directory is always added to this list,
   automatically
@@ -65,9 +69,10 @@ All types of jobs can accepts the following properties:
   - `groovy.forwardParameters` (*default*: `false`) if true, all parameters received by this job are automatically
   forwarded to the next jobs in the workflow, by adding them to the output. Note that even if this is set to true,
   result of the script overrides any input parameter. Additionally, the property `working.dir` and any other property
-  starting with `azkaban.` are never forwarded.
+  starting with `azkaban.` or `groovy.` are never forwarded (so this parameter is never forwarded)
   - `groovy.checkOutput` (*default*: `false`) if true, the result of the script cannot be null and must be an instance
   of Map, otherwise the job will fail.
+
 
 ### Groovy Job
 
@@ -79,10 +84,6 @@ so it should not be a concern for Azkaban server stability.
 
 This job accepts also:
 
-  - `groovy.command` or `groovy.command.<n>` that can be used instead of the `groovy.script` parameter.
-  If `groovy.script` is not defined, the plugin will execute the command/s provided using this property/es.
-  `<n>` can be any string, in case you need multiple lines. Lines are then sorted using alphabetic ordering on
-  `<n>` values.
   - `groovy.timeout` (*default:* `0`) timeout for the script in seconds. If less than 1, timeout is disabled.
 
 *Note*: the `groovy.resolver.<name>` properties couldn't be fetched correctly if some other plugins of your

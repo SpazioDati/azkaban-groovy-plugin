@@ -4,16 +4,11 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import groovy.lang.Binding;
 import groovy.util.GroovyScriptEngine;
+import org.apache.commons.io.FileUtils;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 
 /**
@@ -27,6 +22,7 @@ public class AzkabanGroovyRunner {
     public static final String WORKING_DIR = "working.dir";
     // the path of the groovy script
     public static final String GROOVY_SCRIPT = "groovy.script";
+    public static final String GROOVY_COMMAND = "groovy.command";
     // the list of folder containing groovy scripts
     public static final String GROOVY_CLASSPATH = "groovy.classpath";
     // if true, it will parse the output of the script as the output of the job
@@ -53,8 +49,17 @@ public class AzkabanGroovyRunner {
         if (not(outputfile)) throw new RuntimeException ("No "+OUT_PROP_FILE_ENV+" env-var has been found");
         else System.out.println("Output will be dumped in "+outputfile);
 
-        String scriptfile = getStringParam(GROOVY_SCRIPT);
         String workdir = params.getProperty(WORKING_DIR, "./");
+
+        Map<String, String> commandsmap = getMapParam(GROOVY_COMMAND);
+        String scriptfile;
+        if (commandsmap.size() > 0)
+            scriptfile = params.getProperty(GROOVY_SCRIPT, null);
+        else
+            scriptfile = getStringParam(GROOVY_SCRIPT);
+        if (scriptfile == null)
+            scriptfile = createScriptFromCommand(commandsmap, new File(workdir), System.out);
+
 
         String classpath = params.getProperty(GROOVY_CLASSPATH);
         String[] urls = is(classpath) ? classpath.split(":") : new String[0];
@@ -109,10 +114,6 @@ public class AzkabanGroovyRunner {
         System.exit(0);
     }
 
-    static boolean isReservedKey(String key) {
-        return key.startsWith("azkaban.") && key.equals("working.dir");
-    }
-
     static String getStringParam(String key) throws Exception {
         String val = params.getProperty(key);
         if (not(val)) throw new RuntimeException ("No property with key ["+key+"] has been found");
@@ -123,6 +124,13 @@ public class AzkabanGroovyRunner {
         return "true".equalsIgnoreCase(v);
     }
 
+    static Map<String,String> getMapParam(String prefix) {
+        Map<String, String> map = new HashMap<>();
+        for (String k : params.stringPropertyNames())
+            if (k.startsWith(prefix))
+                map.put(k.substring(prefix.length()), params.getProperty(k));
+        return map;
+    }
 
     static boolean is(String s) {
         return s != null && s.length() > 0;
@@ -132,4 +140,30 @@ public class AzkabanGroovyRunner {
     }
 
 
+    public static boolean isReservedKey(String key) {
+        return key.startsWith("azkaban.") && key.equals("working.dir") && key.startsWith("groovy.");
+    }
+
+    public static String createScriptFromCommand(Map<String, String> commandmap, File wd, Appendable log)
+            throws IOException {
+        List<Map.Entry<String, String>> entrylist = new ArrayList<>(commandmap.entrySet());
+        Collections.sort(entrylist, new Comparator<Map.Entry<String, String>>() {
+            @Override
+            public int compare(Map.Entry<String, String> o1, Map.Entry<String, String> o2) {
+                return o1.getKey().compareTo(o2.getKey());
+            }
+        });
+        String commandstring = "";
+        List<String> commands = new ArrayList<>();
+        for (Map.Entry<String, String> entry : entrylist) {
+            commands.add(entry.getValue());
+            commandstring += entry.getValue() +'\n';
+        }
+
+        log.append("Using command list:\n" + commandstring);
+
+        File fscript = new File(wd, System.currentTimeMillis()+".groovy");
+        FileUtils.writeLines(fscript, "UTF-8", commands);
+        return fscript.getName();
+    }
 }

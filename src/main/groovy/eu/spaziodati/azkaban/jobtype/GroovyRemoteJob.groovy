@@ -5,14 +5,13 @@ import azkaban.utils.Props
 import com.jcraft.jsch.JSch
 import eu.spaziodati.azkaban.JobUtils
 import eu.spaziodati.azkaban.Reflection
-import groovy.io.FileType
 import org.apache.commons.io.FileUtils
-import org.apache.commons.io.IOUtils
 import org.apache.log4j.Logger
 
 import java.nio.charset.StandardCharsets
-import java.nio.file.CopyOption
+import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
@@ -20,10 +19,6 @@ import java.util.concurrent.Future
 import java.util.concurrent.ThreadFactory
 
 import static com.aestasit.infrastructure.ssh.DefaultSsh.*
-
-import java.nio.file.Files
-import java.nio.file.Paths
-
 import static groovy.io.FileType.FILES
 
 class GroovyRemoteJob extends GroovyProcessJob {
@@ -42,7 +37,9 @@ class GroovyRemoteJob extends GroovyProcessJob {
     static final JAVA_INSTALLER = "groovy.remote.javaInstaller"
     static final SUDO_JAVA_INSTALLER = "groovy.remote.sudo.javaInstaller"
     static final SUDO = "groovy.remote.sudo"
+    static final CLEANUP = "groovy.remote.cleanup"
 
+    static def DISCARD_LOG = ~/\d+ bytes transferred/
 
     public GroovyRemoteJob(String jobid, Props sysProps, Props jobProps, Logger log) {
         super(jobid, sysProps, new Props(sysProps, jobProps), log)
@@ -99,6 +96,7 @@ class GroovyRemoteJob extends GroovyProcessJob {
             config[SUDO] = jobProps.getBoolean(SUDO, false)
             config[VERBOSE] = jobProps.getBoolean(VERBOSE, true)
             config[SUDO_JAVA_INSTALLER] = jobProps.getBoolean(SUDO_JAVA_INSTALLER, true)
+            config[CLEANUP] = jobProps.getBoolean(CLEANUP, true)
 
             if (!config[PASSWORD] && !config[KEY_FILE]) throw new Exception("No password nor key file has been defined")
 
@@ -141,7 +139,8 @@ class GroovyRemoteJob extends GroovyProcessJob {
                 logger = new com.aestasit.infrastructure.ssh.log.Logger() {
                     @Override
                     void info(String message) {
-                        GroovyRemoteJob.this.info("[ssh] " + message)
+                        if (!DISCARD_LOG.matcher(message).matches() )
+                            GroovyRemoteJob.this.info("[ssh] " + message)
                     }
 
                     @Override
@@ -177,75 +176,96 @@ class GroovyRemoteJob extends GroovyProcessJob {
                             exec "chmod 777 ${config[REMOTE_DIR]}"
                     }
 
-                    info ("Making a copy of files to be uploaded...")
-                    def tempdir = Files.createTempDirectory("groovy_remote_job")
-                    //we have to exclude the log files, otherwise they will be replaced
-                    //when results are copied back from remote
-                    FileUtils.copyDirectory(new File(getWorkingDirectory()), tempdir.toFile(), {
-                        file ->
-                            ! ( file.name ==~ /_(flow|job)\..+\.log/ ) &&
-                            ! ( file.name ==~ /java-installer.*/ )
-                    } as FileFilter)
+                    try {
+                        info("Making a copy of files to be uploaded...")
+                        def tempdir = Files.createTempDirectory("groovy_remote_job")
+                        //we have to exclude the log files, otherwise they will be replaced
+                        //when results are copied back from remote
+                        FileUtils.copyDirectory(new File(getWorkingDirectory()), tempdir.toFile(), {
+                            file ->
+                                !(file.name ==~ /_(flow|job)\..+\.log/) &&
+                                        !(file.name ==~ /java-installer.*/)
+                        } as FileFilter)
 
-                    info ("Copying files remotely...")
-                    scp {
-                        from {
-                            new File(getWorkingDirectory()).traverse(
-                                type: FILES,
-                                excludeNameFilter: ~/(_(flow|job)\..+\.log|java-installer.*)/
-                            ) {
-                                localDir(tempdir.toFile())
+                        try {
+                            info("Copying files remotely...")
+                            scp {
+                                from {
+                                    new File(getWorkingDirectory()).traverse(
+                                            type: FILES,
+                                            excludeNameFilter: ~/(_(flow|job)\..+\.log|java-installer.*)/
+                                    ) {
+                                        localDir(tempdir.toFile())
+                                    }
+                                }
+                                into { remoteDir(config[REMOTE_DIR]) }
+                            }
+                        } finally {
+                            info("Deleting temporary copy in $tempdir")
+                            if ( tempdir.deleteDir() )
+                                info("$tempdir deleted")
+                            else
+                                warn("Unable to clean directory $tempdir")
+                        }
+                        // check java installation
+                        def javacheck = exec(failOnError: false, command: 'java -version')
+                        if (javacheck.exitStatus != 0) {
+                            info("No java installation found, now installing")
+                            if (!config[JAVA_INSTALLER]) {
+                                info("Using default java installer")
+                                def embeddedInstaller = extractEmbeddedJavaInstaller()
+                                scp {
+                                    from { localFile embeddedInstaller }
+                                    into { remoteFile "${config[REMOTE_DIR]}/.java-installer.sh" }
+                                }
+                                config[JAVA_INSTALLER] = ".java-installer.sh"
+
+                            } else info("Java installer: " + config[JAVA_INSTALLER])
+
+                            if (!config[SUDO] && config[SUDO_JAVA_INSTALLER])
+                                exec "sudo /bin/bash ${config[JAVA_INSTALLER]}"
+                            else
+                                exec "/bin/bash ${config[JAVA_INSTALLER]}"
+                        }
+
+                        // create launcher script
+                        def launcher = ""
+                        def workingDirAbsolutePath = new File(getWorkingDirectory()).getAbsolutePath();
+                        getEnvironmentVariables().each {
+                            def val = it.value.contains(workingDirAbsolutePath) ?
+                                    it.value.replace(workingDirAbsolutePath, "./") :
+                                    it.value;
+
+                            launcher += "export ${it.key}='$val'\n"
+                        }
+                        launcher += "\n${createCommandLine()}\n"
+                        info("Created launcher script: \n" + launcher)
+
+                        // launch
+                        info("Running job...")
+                        remoteFile("${config[REMOTE_DIR]}/launcher.sh").text = launcher
+                        exec "/bin/bash launcher.sh"
+                        exec "rm -f launcher.sh $jarfile"
+
+                        info("Execution completed, downloading results...")
+                        scp {
+                            from { remoteDir(config[REMOTE_DIR]) }
+                            into { localDir(getWorkingDirectory()) }
+                        }
+
+                    } finally {
+                        if (config[CLEANUP]) {
+                            try {
+                                info("Cleaning...")
+                                prefix(config[SUDO] ? "sudo " : "") {
+                                    exec "rm -rf ${config[REMOTE_DIR]}"
+                                }
+                                info("Cleaning completed.")
+                            } catch (Exception e) {
+                                warn("Unable to cleanup remote server: "+e.toString())
                             }
                         }
-                        into { remoteDir(config[REMOTE_DIR]) }
                     }
-
-                            // check java installation
-                    def javacheck = exec(failOnError: false, command: 'java -version')
-                    if (javacheck.exitStatus != 0) {
-                        info("No java installation found, now installing")
-                        if (!config[JAVA_INSTALLER]) {
-                            info ("Using default java installer")
-                            def embeddedInstaller = extractEmbeddedJavaInstaller()
-                            scp {
-                                from { localFile embeddedInstaller }
-                                into { remoteFile "${config[REMOTE_DIR]}/.java-installer.sh" }
-                            }
-                            config[JAVA_INSTALLER] = ".java-installer.sh"
-                            
-                        } else info ("Java installer: "+config[JAVA_INSTALLER])
-
-                        if (!config[SUDO] && config[SUDO_JAVA_INSTALLER])
-                            exec "sudo /bin/bash ${config[JAVA_INSTALLER]}"
-                        else 
-                            exec "/bin/bash ${config[JAVA_INSTALLER]}"
-                    }
-
-                    // create launcher script
-                    def launcher = ""
-                    def workingDirAbsolutePath = new File(getWorkingDirectory()).getAbsolutePath();
-                    getEnvironmentVariables().each {
-                        def val = it.value.contains(workingDirAbsolutePath) ?
-                                it.value.replace(workingDirAbsolutePath, "./") :
-                                it.value;
-
-                        launcher += "export ${it.key}='$val'\n"
-                    }
-                    launcher += "\n${createCommandLine()}\n"
-                    info("Created launcher script: \n" + launcher)
-
-                    // launch
-                    info("Running job...")
-                    remoteFile("${config[REMOTE_DIR]}/launcher.sh").text = launcher
-                    exec "/bin/bash launcher.sh"
-                    exec "rm -f launcher.sh $jarfile"
-
-                    info("Execution completed, downloading results...")
-                    scp {
-                        from { remoteDir(config[REMOTE_DIR]) }
-                        into { localDir(getWorkingDirectory()) }
-                    }
-
                 }
 
             } as Callable)
@@ -266,6 +286,7 @@ class GroovyRemoteJob extends GroovyProcessJob {
             executor.shutdownNow()
             temporaryFiles.each {
                 try {
+                    info("Deleting $it")
                     Files.deleteIfExists(it as Path)
                 } catch (Exception e) {
                     warn("Unable to cleanup file "+it+ " : "+e.getMessage())
