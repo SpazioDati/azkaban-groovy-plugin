@@ -13,11 +13,12 @@ import org.apache.log4j.Logger;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 public class JobUtils {
     
-    public static final String SKIP_PROP = "azkaban.flow.skip";
-    public static final String NOOP_PROP = "azkaban.flow.noop";
+    public static final String SKIP_PROP = "flow.skip";
+    public static final String NOOP_PROP = "flow.noop";
     public static final String FORWARD_PARAMETERS = "groovy.forwardParameters";
 
 
@@ -28,20 +29,22 @@ public class JobUtils {
         JobRunner runner = myJobRunner(execId, jobId);
         if (props.containsKey(SKIP_PROP)) {
             String raw = props.get(SKIP_PROP);
-            boolean skip = isTrue(raw, props);
+            log.info("Found " + SKIP_PROP + "=" + raw);
+            boolean skip = isTrue(raw, props, log, jobId);
             if (skip) {
                 log.info("SKIP for this job: " + SKIP_PROP + "=" + raw);
                 runner.getNode().setStatus(Status.SKIPPED);
                 runner.getNode().setUpdateTime(System.currentTimeMillis());
                 Props p = new Props();
-                p.put("azkaban.flow.skip", "true");
+                p.put(SKIP_PROP, "true");
                 return p;
             }
-        } 
-        
+        }
+
         if (props.containsKey(NOOP_PROP)) {
             String raw = props.get(NOOP_PROP);
-            if (isTrue(raw, props)) {
+            log.info("Found " + NOOP_PROP+ "=" + raw);
+            if (isTrue(raw, props, log, jobId)) {
                 log.info("NOOP for this job: " + NOOP_PROP + "=" + raw);
                 if (props.getBoolean(FORWARD_PARAMETERS, false))
                     return forwardParameters(props);
@@ -49,7 +52,8 @@ public class JobUtils {
                     return new Props();
             }
         }
-        
+
+
         log.info("Pre-conditions satisfied");
         
         return null;
@@ -68,12 +72,27 @@ public class JobUtils {
 
     }
     
-    static boolean isTrue(String raw, Props props) {
-        
+    static boolean isTrue(String raw, Props props, Logger log, String jobname) {
+
+        if (raw != null) {
+            String regex = raw.trim();
+            if (regex.startsWith("/") && regex.endsWith("/") && regex.length() > 2) {
+                regex = regex.substring(1,regex.length()-1);
+                try {
+                    Pattern pattern = Pattern.compile(regex);
+                    log.info("Evaluation using regex...");
+                    return pattern.matcher(jobname).matches();
+                } catch (Exception e) {
+                    log.warn("Regex compilation error: "+e.toString());
+                }
+            }
+        }
+
         Object result = null;
         try {
             Map cfg = PropsUtils.toStringMap(props, false);
             result = Eval.me("config", cfg, raw);
+            log.info("Evaluation using code...");
         } catch (Exception e) {}
         
         if (result != null) {
@@ -85,6 +104,8 @@ public class JobUtils {
         
         if (raw == null || raw.length() == 0) 
             return false;
+
+        log.info("Evaluation using literal...");
         try {
             return Integer.parseInt(raw) != 0;
         } catch (Exception e){}

@@ -103,6 +103,9 @@ public class GroovyJob extends AbstractProcessJob {
             info("Creating engine...");
             FlowRunner flowRunner = JobUtils.myFlowRunner(execid);
             JobRunner jobRunner = JobUtils.myJobRunner(execid, getId());
+
+            ScriptHelper helper = new ScriptHelper(flowRunner, jobRunner);
+
             
             engine = new GroovyScriptEngine(urls);
             scriptVars = new Binding();
@@ -110,7 +113,8 @@ public class GroovyJob extends AbstractProcessJob {
             scriptVars.setVariable("config", PropsUtils.toStringMap(jobProps, false));
             scriptVars.setVariable("progress", progress);
             scriptVars.setVariable("flowrunner", flowRunner);
-            scriptVars.setVariable("onfinish", new FlowRunnerFinishHandler(flowRunner, jobRunner));
+            scriptVars.setVariable("onfinish", helper);
+            scriptVars.setVariable("azkaban", helper);
             scriptVars.setVariable("jobrunner", jobRunner);
             scriptVars.setVariable("log", getLog());
             scriptVars.setProperty("out", new PrintStream(new StreamToLogger(getLog(), Level.INFO, "[groovy] ")));
