@@ -90,7 +90,7 @@ class GroovyRemoteJob extends GroovyProcessJob {
             config[USERNAME] = jobProps.getString(USERNAME)
             def defaultRemoteWorkingDir = "/tmp/azkaban-${jobProps.get('azkaban.flow.flowid')}-${jobProps.get('azkaban.flow.execid')}"
             config[REMOTE_DIR] = jobProps.getString(REMOTE_DIR, defaultRemoteWorkingDir)
-            config[PASSWORD] = jobProps.getString(PASSWORD, null)
+            config[PASSWORD] = jobProps.getString(PASSWORD, "")
             config[KEY_FILE] = jobProps.getString(KEY_FILE, null)
             config[JAVA_INSTALLER] = jobProps.getString(JAVA_INSTALLER, null)
             config[SUDO] = jobProps.getBoolean(SUDO, false)
@@ -159,8 +159,13 @@ class GroovyRemoteJob extends GroovyProcessJob {
                     host = config[HOST]
                     port = config[PORT]
                     user = config[USERNAME]
-                    if (config[PASSWORD]) password = config[PASSWORD]
-                    if (config[KEY_FILE]) keyFile = new File(config[KEY_FILE])
+                    password = config[PASSWORD]
+                    if (config[KEY_FILE]) {
+                        if (!Paths.get(config[KEY_FILE]).isAbsolute()) {
+                            keyFile = new File(getWorkingDirectory(), (String) config[KEY_FILE])
+                        } else
+                            keyFile = new File(config[KEY_FILE])
+                    }
 
                     //CONNECTION
                     connect()
