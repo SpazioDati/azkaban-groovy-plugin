@@ -1,5 +1,6 @@
 package eu.spaziodati.azkaban.jobtype
 
+import azkaban.execapp.AzkabanExecutorServer
 import azkaban.execapp.FlowRunner
 import azkaban.execapp.JobRunner
 import azkaban.execapp.event.Event
@@ -28,8 +29,7 @@ public class ScriptHelper {
         def proxyUsers = flowrunner.executableFlow.proxyUsers
 
         def azkaban = AzkabanWebServer.app
-        def project = projectName? azkaban.projectManager.getProject(projectName)
-                : azkaban.projectManager.getProject(flowrunner.executableFlow.projectId)
+        def project = projectName? fetchProject(projectName) : fetchProject(flowrunner.executableFlow.projectId)
         if (!project) throw new RuntimeException("Unable to find project with name [$projectName]")
         def flow = project.getFlow(flowid)
         if (!flow) throw new RuntimeException("Unable to find flow [$flowid] for project $projectName")
@@ -50,12 +50,30 @@ public class ScriptHelper {
         options.setMailCreator(flow.getMailCreator());
         execflow.setExecutionOptions(options)
 
-        def result = azkaban.executorManager.submitExecutableFlow(execflow, user)
+        def result = execute(execflow)
 
         log("Execution result: $result")
 
     }
 
+    def fetchProject(String name) {
+        if (AzkabanWebServer.app)
+            return AzkabanWebServer.app.projectManager.getProject(name)
+        else
+            return AzkabanExecutorServer.app.projectLoader.fetchAllActiveProjects().find { it.name == name}
+    }
+    def fetchProject(int id) {
+        if (AzkabanWebServer.app)
+            return AzkabanWebServer.app.projectManager.getProject(id)
+        else
+            return AzkabanExecutorServer.app.projectLoader.fetchProjectById(id)
+    }
+    def execute(ExecutableFlow execflow){
+        if (AzkabanWebServer.app)
+            return AzkabanWebServer.app.executorManager.submitExecutableFlow(execflow, execflow.submitUser)
+        else
+            return AzkabanExecutorServer.app.executorLoader.uploadExecutableFlow(execflow)
+    }
 
     def log(String msg, Exception e = null) {
 
