@@ -251,6 +251,7 @@ This job accepts also:
  for installing Oracle JVM version 7 using `apt-get`.
  - `groovy.remote.sudo.javaInstaller` (*default*: `true`) if set to true, the `javaInstaller` will be executed with `sudo`
  - `groovy.remote.sudo` (*default*: `false`) if set to true, any command executed to the remote machine will be prefixed with `sudo`
+ - `groovy.remote.cleanup` (*default*: `true`) if set to true, the remote directory will be deleted once this job is completed
 
 The script binding is the same as `GroovyProcess` job type, so limited to `config` variable.
 
