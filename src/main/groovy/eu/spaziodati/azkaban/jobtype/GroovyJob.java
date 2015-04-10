@@ -121,7 +121,7 @@ public class GroovyJob extends AbstractProcessJob {
             FlowRunner flowRunner = JobUtils.myFlowRunner(execid);
             JobRunner jobRunner = JobUtils.myJobRunner(execid, getId());
 
-            ScriptHelper helper = new ScriptHelper(flowRunner, jobRunner);
+            ScriptHelper helper = new ScriptHelper(flowRunner, jobRunner, jobProps);
 
             
             engine = new GroovyScriptEngine(urls);

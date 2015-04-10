@@ -5,56 +5,111 @@ import azkaban.execapp.FlowRunner
 import azkaban.execapp.JobRunner
 import azkaban.execapp.event.Event
 import azkaban.execapp.event.EventListener
-import azkaban.executor.ExecutableFlow
 import azkaban.executor.ExecutableFlowBase
 import azkaban.executor.ExecutionOptions
 import azkaban.executor.Status
+import azkaban.utils.Props
 import azkaban.webapp.AzkabanWebServer
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+import org.apache.http.client.HttpClient
+import org.apache.http.client.methods.HttpGet
+import org.apache.http.client.methods.HttpPost
+import org.apache.http.client.utils.URIBuilder
+import org.apache.http.impl.client.BasicResponseHandler
+import org.apache.http.impl.client.DefaultHttpClient
 import org.apache.log4j.WriterAppender
 
 public class ScriptHelper {
 
+    static final def EXECUTE_ENDPOINT = "groovy.execute.endpoint"
+    static final def EXECUTE_USERNAME = "groovy.execute.username"
+    static final def EXECUTE_PASSWORD = "groovy.execute.password"
+
     FlowRunner flowrunner
     JobRunner jobrunner
+    Props props
 
-    public ScriptHelper(FlowRunner flowrunner, JobRunner jobrunner) {
+    public ScriptHelper(FlowRunner flowrunner, JobRunner jobrunner, Props props) {
         this.flowrunner = flowrunner
         this.jobrunner = jobrunner
+        this.props = props
     }
+
     def execute(String flowid, Map params = [:], ExecutionOptions options = null) {
         execute("", flowid, params, options)
     }
+
     def execute(String projectName, String flowid, Map params = [:], ExecutionOptions options = null) {
-        def user = flowrunner.executableFlow.submitUser
-        def proxyUsers = flowrunner.executableFlow.proxyUsers
 
-        def azkaban = AzkabanWebServer.app
-        def project = projectName? fetchProject(projectName) : fetchProject(flowrunner.executableFlow.projectId)
-        if (!project) throw new RuntimeException("Unable to find project with name [$projectName]")
-        def flow = project.getFlow(flowid)
-        if (!flow) throw new RuntimeException("Unable to find flow [$flowid] for project $projectName")
+        def http = new DefaultHttpClient();
+        try {
+            String sessionid = login(http)
 
-        log("Submitting flow $flowid of project $projectName by user $user ...")
+            def endpoint = props.getString(EXECUTE_ENDPOINT)
+            projectName = projectName?: fetchProject(flowrunner.executableFlow.projectId).name
 
-        def execflow = new ExecutableFlow(project, flow)
-        execflow.submitUser = user
-        execflow.addAllProxyUsers(proxyUsers)
+            log("Trying to execute flow '$flowid' of project '$projectName' ...")
 
-        options = options ?: new ExecutionOptions();
-        if (params) options.addAllFlowParameters(params)
+            def uri = new URIBuilder(endpoint)
+                .setPath("/executor")
+                .addParameter("session.id", sessionid)
+                .addParameter("ajax", "executeFlow")
+                .addParameter("project", projectName)
+                .addParameter("flow", flowid)
 
-        if (!options.isFailureEmailsOverridden())
-            options.setFailureEmails(flow.getFailureEmails());
-        if (!options.isSuccessEmailsOverridden())
-            options.setSuccessEmails(flow.getSuccessEmails());
-        options.setMailCreator(flow.getMailCreator());
-        execflow.setExecutionOptions(options)
+            if (options) {
+                if (options.disabledJobs)
+                    uri.addParameter("disabled", JsonOutput.toJson(options.disabledJobs))
+                // TODO add other parameters: http://azkaban.github.io/azkaban/docscioè prima de/2.5/#api-execute-a-flow
+            }
+            if (params)
+                params.forEach { k,v -> uri.addParameter("flowOverride[$k]", v.toString()) }
 
-        def result = execute(execflow)
+            try {
+                def response = http.execute(new HttpGet(uri.build()), new BasicResponseHandler())
+                def result = new JsonSlurper().parseText(response)
+                if (!result) throw new Exception("No body returned")
+                if (result.error) throw new Exception((String)result.error)
 
-        log("Execution result: $result")
+                log("Execution of flow '$flowid' of project '$projectName' successfully submitted:\n ${JsonOutput.prettyPrint(response)}")
+
+            } catch (Exception e) {
+                throw new Exception("Error while sending execution command to executor: $e", e);
+            }
+        } finally {
+            try { http.getConnectionManager().shutdown();}
+            catch (Exception e) {}
+        }
 
     }
+
+    def login(HttpClient client) {
+        def endpoint = props.getString(EXECUTE_ENDPOINT)
+        def username = props.getString(EXECUTE_USERNAME)
+        def password = props.getString(EXECUTE_PASSWORD)
+
+        def loginuri = new URIBuilder(endpoint+"/")
+                .addParameter("action", "login")
+                .addParameter("username", username)
+                .addParameter("password", password)
+                .build()
+        try {
+            def resp = client.execute(new HttpPost(loginuri), new BasicResponseHandler())
+            def result = new JsonSlurper().parseText(resp)
+            if (!result) throw new Exception("No body returned")
+            if (result.error) throw new Exception("Login failed: "+result.error)
+            if (!result['session.id']) throw new Exception("No session.id returned by executor: [$result]")
+            return result['session.id']
+        } catch (Exception e) {
+            throw new Exception("Error while login to executor: $e", e);
+        }
+    }
+
+    def systemProp(String name) {
+        if (!props.containsKey(name) && !AzkabanExecutorServer.app.azkabanProps.containsKey(name))
+    }
+
 
     def fetchProject(String name) {
         if (AzkabanWebServer.app)
@@ -67,12 +122,6 @@ public class ScriptHelper {
             return AzkabanWebServer.app.projectManager.getProject(id)
         else
             return AzkabanExecutorServer.app.projectLoader.fetchProjectById(id)
-    }
-    def execute(ExecutableFlow execflow){
-        if (AzkabanWebServer.app)
-            return AzkabanWebServer.app.executorManager.submitExecutableFlow(execflow, execflow.submitUser)
-        else
-            return AzkabanExecutorServer.app.executorLoader.uploadExecutableFlow(execflow)
     }
 
     def log(String msg, Exception e = null) {

@@ -7,7 +7,7 @@
     <groupId>eu-spaziodati</groupId>
     <artifactId>azkaban-plugins-groovy</artifactId>
     <packaging>jar</packaging>
-    <version>0.4.2</version>
+    <version>0.4.3</version>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <groovy.version>2.4.3</groovy.version>
@@ -47,6 +47,12 @@
             <version>${azkaban.version}</version>
             <scope>provided</scope>
         </dependency>
+
+        <!--
+        these are (some of) azkaban dependencies used during compilation but are already available in installation
+        because azkaban pom doens't mention any deps, it is build using ant then the jar has been uploaded to repo
+        central.
+        -->
         <dependency>
             <groupId>net.sf.jopt-simple</groupId>
             <artifactId>jopt-simple</artifactId>
@@ -69,16 +75,20 @@
             <groupId>org.apache.velocity</groupId>
             <artifactId>velocity</artifactId>
             <version>1.7</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>4.2.1</version>
             <scope>provided</scope>
         </dependency>
-
-
         <dependency>
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
             <version>1.2.16</version>
             <scope>provided</scope>
         </dependency>
+        <!-- end of azkaban dependencies -->
     </dependencies>
 
     <build>
