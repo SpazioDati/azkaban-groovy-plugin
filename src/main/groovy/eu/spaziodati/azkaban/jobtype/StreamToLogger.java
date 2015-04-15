@@ -83,12 +83,14 @@ public class StreamToLogger extends OutputStream {
      *
      * @exception java.io.IOException if an error occurs
      */
-    public synchronized void flush() throws IOException {
+    public void flush() throws IOException {
         checkValid();
-        if (mOutput.charAt(mOutput.length()-1) == '\n')
-            mOutput.deleteCharAt(mOutput.length()-1);
-        mLogger.log( mLevel, mPrefix + mOutput.toString() );
-        mOutput.setLength( 0 );
+        if (mOutput.length() > 0) {
+            if (mOutput.charAt(mOutput.length() - 1) == '\n')
+                mOutput.deleteCharAt(mOutput.length() - 1);
+            mLogger.log(mLevel, mPrefix + mOutput.toString());
+            mOutput.setLength(0);
+        }
     }
 
     /**
