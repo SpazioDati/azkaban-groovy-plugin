@@ -9,6 +9,7 @@ import azkaban.executor.ExecutableFlowBase
 import azkaban.executor.ExecutionOptions
 import azkaban.executor.Status
 import azkaban.utils.Props
+import azkaban.utils.UndefinedPropertyException
 import azkaban.webapp.AzkabanWebServer
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
@@ -46,7 +47,7 @@ public class ScriptHelper {
         try {
             String sessionid = login(http)
 
-            def endpoint = props.getString(EXECUTE_ENDPOINT)
+            def endpoint = systemProp(EXECUTE_ENDPOINT)
             projectName = projectName?: fetchProject(flowrunner.executableFlow.projectId).name
 
             log("Trying to execute flow '$flowid' of project '$projectName' ...")
@@ -61,7 +62,7 @@ public class ScriptHelper {
             if (options) {
                 if (options.disabledJobs)
                     uri.addParameter("disabled", JsonOutput.toJson(options.disabledJobs))
-                // TODO add other parameters: http://azkaban.github.io/azkaban/docscioè prima de/2.5/#api-execute-a-flow
+                // TODO add other parameters: http://azkaban.github.io/azkaban/docs/2.5/#api-execute-a-flow
             }
             if (params)
                 params.forEach { k,v -> uri.addParameter("flowOverride[$k]", v.toString()) }
@@ -85,9 +86,9 @@ public class ScriptHelper {
     }
 
     def login(HttpClient client) {
-        def endpoint = props.getString(EXECUTE_ENDPOINT)
-        def username = props.getString(EXECUTE_USERNAME)
-        def password = props.getString(EXECUTE_PASSWORD)
+        def endpoint = systemProp(EXECUTE_ENDPOINT)
+        def username = systemProp(EXECUTE_USERNAME)
+        def password = systemProp(EXECUTE_PASSWORD)
 
         def loginuri = new URIBuilder(endpoint+"/")
                 .addParameter("action", "login")
@@ -108,6 +109,9 @@ public class ScriptHelper {
 
     def systemProp(String name) {
         if (!props.containsKey(name) && !AzkabanExecutorServer.app.azkabanProps.containsKey(name))
+            throw new UndefinedPropertyException("Missing required property '$name'");
+        else if (props.containsKey(name)) return props.get(name)
+        else return AzkabanExecutorServer.app.azkabanProps.get(name)
     }
 
 

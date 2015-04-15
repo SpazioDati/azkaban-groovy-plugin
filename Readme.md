@@ -185,7 +185,7 @@ langs.each { l ->
     // set execution options, for more information about this object see
     // http://grepcode.com/file/repo1.maven.org/maven2/com.linkedin.azkaban/azkaban/2.5.0/azkaban/executor/ExecutionOptions.java
     // more documentation is available at http://azkaban.github.io/azkaban/docs/2.5/#api-execute-a-flow
-    opts.failureAction = ExecutionOptions.FailureAction.FINISH_ALL_POSSIBLE
+    // NOTE: currently, only disabled jobs is supported
     opts.disabledJobs = ["job1", "job3"]
 
     def result = azkaban.execute(
@@ -197,10 +197,21 @@ langs.each { l ->
     log.info("Submitted flow for lang $l : $result")
 }
 
-
 ```
 
+For this feature, the job needs for username and password of a valid user that has the right to execute that job.
+The following properties should be set:
 
+  - `groovy.execute.endpoint` the URI of the Azkaban web UI (including protocol, domain, port and eventually path)
+  - `groovy.execute.username`
+  - `groovy.execute.password`
+
+Including these properties in the job definition could be annoying and maybe you don't want to put username and password 
+of such a user in the `.job` files. So these properties can be also set in private executor properties file, and this plugin 
+is able to read them from that file (this applies only for those 3 properties). 
+Namely you can put these values in `<azkaban-executor-home>/conf/azkaban.private.properties`. If job definition doesn't
+contain those 3 properties, plugin will try to read them from that file. The drawback is that that file is read during
+executor startup phase, so any change to that file requires Azkaban reboot.
 
 ### Job GroovyProcess
 
@@ -208,7 +219,8 @@ langs.each { l ->
 
 This execute the Groovy script in a new JVM.
 This is a subtype of `JavaProcess` so you can define any other property of that job type 
-(http://azkaban.github.io/azkaban/docs/2.5/#builtin-jobtypes)
+(http://azkaban.github.io/azkaban/docs/2.5/#builtin-jobtypes). For instance, you can specify the maximum heap memory 
+for the JVM using `Xmx` property.
 
 The main difference is that the main class is fixed and classpath always contains the current working directory.
 The main advantage is that you can avoid build tools to create a simple job, the script is self contained.
@@ -225,6 +237,7 @@ containing all job parameters in a Map.
 This executes a Groovy script on a remote machine. The flow is the following:
 
  - try to connect to the remote host
+ - if defined, it executes an initialization script
  - create remote working directory
  - copy all content of local working directory to the remote one (all but logs are copied)
  - check that java is installed, otherwise try to install a JVM on-the-fly
@@ -232,6 +245,7 @@ This executes a Groovy script on a remote machine. The flow is the following:
  - copy back the content of the remote directory to the local one
  
 So basically, the only requirement on the remote machine is to have a running ssh daemon.
+
 
 #### Additional properties
 
@@ -246,6 +260,7 @@ This job accepts also:
  By default is set to `/tmp/azkaban-{azkaban-flowid}-{azkaban.execid}`.
  If you change this, recall that once the job finishes, the content of the folder is copied back to the local machine,
  so make sure that directory on remote server doesn't contain huge unwanted files.
+ - `groovy.remote.initScript` (*default*: `none`) a path to a file that contains a script that will be executed at the beginning of the session. This will be executed even before setting up the working directory. The script will be executed using command `bash <scriptfile>`, no prefix or `cd` will be used.
  - `groovy.remote.javaInstaller` the path (relative to the working dir) of the file containing a script required
  for installing JVM on-the-fly, if necessary. By default the plugin deploys a shell script embedded in this jar
  for installing Oracle JVM version 7 using `apt-get`.
@@ -254,6 +269,11 @@ This job accepts also:
  - `groovy.remote.cleanup` (*default*: `true`) if set to true, the remote directory will be deleted once this job is completed
 
 The script binding is the same as `GroovyProcess` job type, so limited to `config` variable.
+
+This job relies on `GroovyProcess` that, in turn, is a subtype of `JavaProcess` so you can define any other property 
+of that job type (http://azkaban.github.io/azkaban/docs/2.5/#builtin-jobtypes).
+For instance, you can specify the maximum heap memory for the newly spawned JVM by using `Xmx` property.
+
 
 #### Working directory
 

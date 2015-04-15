@@ -38,6 +38,7 @@ class GroovyRemoteJob extends GroovyProcessJob {
     static final SUDO_JAVA_INSTALLER = "groovy.remote.sudo.javaInstaller"
     static final SUDO = "groovy.remote.sudo"
     static final CLEANUP = "groovy.remote.cleanup"
+    static final INIT_SCRIPT = "groovy.remote.initScript"
 
     static def DISCARD_LOG = ~/\d+ bytes transferred/
 
@@ -46,7 +47,7 @@ class GroovyRemoteJob extends GroovyProcessJob {
     }
 
     def temporaryFiles = []
-    Future task = null
+    volatile Future task = null
     File outputFile = null;
     File parametersFile = null;
 
@@ -97,6 +98,7 @@ class GroovyRemoteJob extends GroovyProcessJob {
             config[VERBOSE] = jobProps.getBoolean(VERBOSE, true)
             config[SUDO_JAVA_INSTALLER] = jobProps.getBoolean(SUDO_JAVA_INSTALLER, true)
             config[CLEANUP] = jobProps.getBoolean(CLEANUP, true)
+            config[INIT_SCRIPT] = jobProps.getString(INIT_SCRIPT, "")
 
             if (!config[PASSWORD] && !config[KEY_FILE]) throw new Exception("No password nor key file has been defined")
 
@@ -173,6 +175,20 @@ class GroovyRemoteJob extends GroovyProcessJob {
                     info("Connected")
 
                     info("Setting up remote environment ")
+
+                    //init script
+                    if (config[INIT_SCRIPT]) {
+                        prefix("") {
+                            info("Invoking init script ${config[INIT_SCRIPT]}")
+                            def script = Paths.get(config[INIT_SCRIPT]).isAbsolute() ?
+                                    new File(config[INIT_SCRIPT]) : new File(getWorkingDirectory(), config[INIT_SCRIPT])
+                            def remoteScript = ".init-${jobProps.get('azkaban.flow.flowid')}-${jobProps.get('azkaban.flow.execid')}.sh"
+                            remoteFile("./$remoteScript").text = script.getText("UTF-8")
+                            exec "bash $remoteScript"
+                            exec "rm $remoteScript"
+                            info("Init script executed")
+                        }
+                    }
 
                     //create remote working dir
                     prefix(config[SUDO] ? "sudo " : "") {
