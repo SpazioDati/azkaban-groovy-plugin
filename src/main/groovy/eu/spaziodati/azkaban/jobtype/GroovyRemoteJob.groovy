@@ -211,14 +211,7 @@ class GroovyRemoteJob extends GroovyProcessJob {
                         try {
                             info("Copying files remotely...")
                             scp {
-                                from {
-                                    new File(getWorkingDirectory()).traverse(
-                                            type: FILES,
-                                            excludeNameFilter: ~/(_(flow|job)\..+\.log|java-installer.*)/
-                                    ) {
-                                        localDir(tempdir.toFile())
-                                    }
-                                }
+                                from { localDir(tempdir.toFile()) }
                                 into { remoteDir(config[REMOTE_DIR]) }
                             }
                         } finally {
