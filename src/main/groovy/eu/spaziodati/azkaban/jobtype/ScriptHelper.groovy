@@ -65,7 +65,7 @@ public class ScriptHelper {
                 // TODO add other parameters: http://azkaban.github.io/azkaban/docs/2.5/#api-execute-a-flow
             }
             if (params)
-                params.forEach { k,v -> uri.addParameter("flowOverride[$k]", v.toString()) }
+                params.each { k,v -> uri.addParameter("flowOverride[$k]", v.toString()) }
 
             try {
                 def response = http.execute(new HttpGet(uri.build()), new BasicResponseHandler())
