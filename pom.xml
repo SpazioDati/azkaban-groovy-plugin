@@ -15,6 +15,16 @@
         <azkaban.version>2.5.0</azkaban.version>
     </properties>
 
+    <developers>
+        <developer>
+            <name>Ugo Scaiella</name>
+            <email>scaiella@spaziodati.eu</email>
+            <organization>SpazioDati</organization>
+            <organizationUrl>http://spaziodati.eu</organizationUrl>
+            <url>http://it.linkedin.com/in/ugoscaiella</url>
+        </developer>
+    </developers>
+
     <dependencies>
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
