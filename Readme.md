@@ -4,6 +4,10 @@ This is a collection of plugins for Azkaban workflow manager, for running Groovy
 It also includes a simple but very useful implementation of control flow management, such as 
 automatic skipping/disabling jobs based on property value. 
 
+##### Status of the project
+
+These plugins have been widely tested for our internal flows, but we haven't invested too much on this project, so you won't find any test and code is not very well structured. We started developing plugins in Java and later we moved to Groovy, so you will find both Java and Groovy classes. Any bug report, patch, improvement, is welcome.
+
 ## Why Groovy?
 
 Because I hate bash scripts longer than one line... 
@@ -127,12 +131,10 @@ You can register event handler for the workflow, in order to execute cleanup ope
 Eg: you want to create a new instance on Amazon EC2 to execute a heavy job, 
 but you want to make sure that the instance is delete when the job finishes, regardless the result of the job.
 
-```java
+```groovy
 // import amazon sdk
 @Grab(group='com.amazonaws', module='aws-java-sdk-ec2', version='1.9.13') 
 import com.amazonaws.services.ec2.*
-import azkaban.execapp.*
-import azkaban.execapp.event.*
 
 // create ec2 instance using Amazon SDK and save a ref to the new instance
 
@@ -174,7 +176,7 @@ instead of creating a macro-flow where all configurations are directly specified
 (so you may need for a script to generate all job nodes) you can create a simple flow and trigger executions of
 same flow with different parameter configuration
 
-```java
+```groovy
 import azkaban.executor.*
 
 def langs = ['it', 'en', 'fr', 'de', 'pt' ]
@@ -209,7 +211,11 @@ The following properties should be set:
 Including these properties in the job definition could be annoying and maybe you don't want to put username and password 
 of such a user in the `.job` files. So these properties can be also set in private executor properties file, and this plugin 
 is able to read them from that file (this applies only for those 3 properties). 
-Namely you can put these values in `<azkaban-executor-home>/conf/azkaban.private.properties`. If job definition doesn't
+Namely you can put these values in 
+
+`<azkaban-executor-home>/conf/azkaban.private.properties`
+
+If job definition doesn't
 contain those 3 properties, plugin will try to read them from that file. The drawback is that that file is read during
 executor startup phase, so any change to that file requires Azkaban reboot.
 
@@ -402,9 +408,8 @@ Properties are read from (in this order, so the latter override the others)
 
 The script is executed with the following binding:
 
-  - `config` the configuration map
-  - `flowrunner.logger`
-  - `log`
+  - `config`, the configuration map
+  - `flowrunner.logger`, `log`
   - `azkaban.onfinish`, `azkaban.execute`
   
 Namely, if your script invoke `azkaban.onfinish`, the function is invoked at the end of the flow.
