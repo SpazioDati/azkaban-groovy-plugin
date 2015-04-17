@@ -8,6 +8,8 @@
     <artifactId>azkaban-plugins-groovy</artifactId>
     <packaging>jar</packaging>
     <version>0.4.5</version>
+    <description>A set of plugins for Azkaban workflow manager to run jobs as groovy scripts</description>
+    <url>https://github.com/SpazioDati/azkaban-groovy-plugin</url>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <groovy.version>2.4.3</groovy.version>
@@ -24,6 +26,10 @@
             <url>http://it.linkedin.com/in/ugoscaiella</url>
         </developer>
     </developers>
+
+    <scm>
+        <url>https://github.com/SpazioDati/azkaban-groovy-plugin.git</url>
+    </scm>
 
     <dependencies>
         <dependency>
