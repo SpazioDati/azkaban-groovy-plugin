@@ -366,3 +366,46 @@ this way `J1` and `J1b` won't run, but their status will be set to `SUCCESS` so 
 will be correctly executed when `J2` and `J3b` will finish.
 `groovy.forwardProperties` is required to let `flow.noop` be passed to downstream jobs, in this case
 is required to noop the execution of job `J1b`.
+
+## Debugging of groovy jobs
+
+This plugin also provides a groovy script for debugging your Azkaban groovy jobs.
+
+This is very useful for `Groovy` job types becasue usually they rely on `azkaban.onfinish` or `azkaban.execute` built-in functions
+However it can be used also for other `Groovy*` job types.
+
+
+### Usage
+
+To debug the script
+
+`> ./debug.groovy [options] <script-file>`
+
+use option `-h` to print out all available options
+
+You can also avoid checking out all the git repo, using groovy remote script execution:
+
+`> groovy https://raw.githubusercontent.com/SpazioDati/azkaban-groovy-plugin/master/scripts/debug.groovy ...`
+
+### Configuration
+
+The script can collect configuration from several sources, merge them and make them available to the script, using `config` binding.
+This way you can avoid making script aware of debug/production mode, just always use `config` map.
+Properties are read from (in this order, so the latter override the others)
+
+  - System properties, if cli option is set
+  - any `.properties` files contained in `./global` directory 
+  - parsing of `./debug.properties`
+  - any in-line parameter using standard java syntax `-D<name>=<value>`
+  
+### Binding
+
+The script is executed with the following binding:
+
+  - `config` the configuration map
+  - `flowrunner.logger`
+  - `log`
+  - `azkaban.onfinish`, `azkaban.execute`
+  
+Namely, if your script invoke `azkaban.onfinish`, the function is invoked at the end of the flow.
+If your script invoke `azkaban.execute`, a message containing execution parameters will be printed out.
