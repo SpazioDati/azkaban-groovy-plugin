@@ -122,7 +122,7 @@ The Groovy script is executed with the following bindings (ie you can reference 
      If the `projectName` is not provided, the same project of the running flow will be used
 
 One of the main advantages of this job type is the ability to interact with Azkaban configuration. 
-If used with caution, this can be very helpful.
+If used with caution, this can be very helpful. Eg. pay attention that if you execute a `System.exit(0)`, you are shutting down the Azkaban executor!
 
 
 #### Registering flow finish handler
