@@ -39,8 +39,10 @@ class GroovyRemoteJob extends GroovyProcessJob {
     static final SUDO = "groovy.remote.sudo"
     static final CLEANUP = "groovy.remote.cleanup"
     static final INIT_SCRIPT = "groovy.remote.initScript"
+    static final RETRY = "groovy.remote.retry"
 
     static def DISCARD_LOG = ~/\d+ bytes transferred/
+    static def FIRST_DELAY = 5
 
     public GroovyRemoteJob(String jobid, Props sysProps, Props jobProps, Logger log) {
         super(jobid, sysProps, new Props(sysProps, jobProps), log)
@@ -99,6 +101,7 @@ class GroovyRemoteJob extends GroovyProcessJob {
             config[SUDO_JAVA_INSTALLER] = jobProps.getBoolean(SUDO_JAVA_INSTALLER, true)
             config[CLEANUP] = jobProps.getBoolean(CLEANUP, true)
             config[INIT_SCRIPT] = jobProps.getString(INIT_SCRIPT, "")
+            config[RETRY] = jobProps.getInt(RETRY, 5)
 
             if (!config[PASSWORD] && !config[KEY_FILE]) throw new Exception("No password nor key file has been defined")
 
@@ -159,7 +162,7 @@ class GroovyRemoteJob extends GroovyProcessJob {
                 remoteSession {
 
                     host = config[HOST]
-                    port = config[PORT]
+                    port = config[PORT] as int
                     user = config[USERNAME]
                     password = config[PASSWORD]
                     if (config[KEY_FILE]) {
@@ -170,7 +173,26 @@ class GroovyRemoteJob extends GroovyProcessJob {
                     }
 
                     //CONNECTION
-                    connect()
+                    def attempt = 0, maxAttempt = config[RETRY] as int, delay = FIRST_DELAY
+                    if (maxAttempt <= 0) maxAttempt = 1
+                    def connected = false
+                    while(!connected) {
+                        try {
+                            attempt++
+                            info("Try to connect (attempt n.${attempt})")
+                            connect()
+                            connected = true
+                        } catch (Exception e) {
+                            if (attempt >= maxAttempt) throw new RuntimeException("Unable to connect after $attempt attempt/s", e)
+                            else {
+                                warn("Connection attempt n.${attempt} failed: "+e)
+                                info("Waiting $delay seconds...")
+                                Thread.sleep(delay*1000)
+                                delay *= 2
+                            }
+                        }
+                    }
+
 
                     info("Connected")
 
