@@ -8,6 +8,7 @@ import azkaban.execapp.event.EventListener
 import azkaban.executor.ExecutableFlowBase
 import azkaban.executor.ExecutionOptions
 import azkaban.executor.Status
+import azkaban.flow.CommonJobProperties
 import azkaban.utils.Props
 import azkaban.utils.UndefinedPropertyException
 import azkaban.webapp.AzkabanWebServer
@@ -144,16 +145,27 @@ public class ScriptHelper {
     }
 
     def onfinish (Closure c) {
-        def myFlowid = jobrunner.getNode().getParentFlow().getFlowId();
+        //this is not reliable, i don't know why. It looks like the parentFlow is shared
+        //even if two jobs are executed in different branches
+        //  def myFlowid = jobrunner.getNode().getParentFlow().nestedId;
+        //so we have to parse the property attached to the jobrunner
+        def myFlowid = props.get(CommonJobProperties.NESTED_FLOW_PATH)
+        if (myFlowid && myFlowid.contains(":")) {
+            myFlowid = myFlowid[0..<myFlowid.lastIndexOf(":")]
+        } else {
+            myFlowid = jobrunner.getNode().getParentFlow().getFlowId()
+        }
 
         EventListener listener = new EventListener() {
             def done = false
             public void handleEvent(Event event) {
-                if (! done && event.type == Event.Type.JOB_FINISHED) {
+
+                if (!done && event.type == Event.Type.JOB_FINISHED) {
+
                     if (event.data &&
                             event.data instanceof ExecutableFlowBase &&
                             // to match nested flows
-                            (event.data as ExecutableFlowBase).flowId.equals(myFlowid) &&
+                            (event.data as ExecutableFlowBase).nestedId.equals(myFlowid) &&
                             event.runner instanceof FlowRunner) {
 
                         try {
