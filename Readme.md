@@ -261,6 +261,7 @@ This job accepts also:
  - `groovy.remote.username` (*required*) the username
  - `groovy.remote.port` (*default*: `22`) the ssh connection port
  - `groovy.remote.password` the password, must be set if `groovy.remote.keyFile` is not set
+ - `groovy.remote.retry` (*default*: `5`) number of connection attempts. If connection cannot be established the plugin retries to connect to the host after 5 seconds (it may be useful in case of on-demand EC2 instances that are not immediately ready for ssh). After each attempt, the delay is doubled (so 5, 10, 20...)
  - `groovy.remote.keyFile` the path of file containing the ssh key, must be set if `groovy.remote.password` is not set
  - `groovy.remote.working.dir` the working directory on the remote machine, is created if not found.
  By default is set to `/tmp/azkaban-{azkaban-flowid}-{azkaban.execid}`.
