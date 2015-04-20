@@ -234,6 +234,10 @@ The main advantage is that you can avoid build tools to create a simple job, the
 The script binding is limited with respect to the `Groovy` job, and it includes only the `config` variable 
 containing all job parameters in a Map.
 
+#### Logging
+
+The executor jar embeds Log4J and SLF4J binding for Log4J, but doesn't embed any Log4J configuration and by default Log4J just prints out a warning message if it hasn't been initialized, discarding any log message. So, if you are using third party libraries and you need for logs, you can configure log4j programatically in your script or just put a `log4j.properties` in your working dir and add that path to the classpath or use `jvm.args` configuration property to initialize Log4J (ig `jvm.args= -Dlog4j.configuration=file://${working.dir}/log4j.properties` )
+
 ### Job GroovyRemoteJob
 
 `type:GroovyRemote`
@@ -300,6 +304,9 @@ user can easily create scenarios where that patch is not enough and
 script could die because of path-not-found errors. It's up to the user
 to make sure that the script doesn't rely on those properties.
 
+#### Logging
+
+See section *Logging* for GroovyProcess
 
 ## Control flow
 
