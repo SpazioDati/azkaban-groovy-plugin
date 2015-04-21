@@ -7,7 +7,7 @@
     <groupId>eu-spaziodati</groupId>
     <artifactId>azkaban-plugins-groovy</artifactId>
     <packaging>jar</packaging>
-    <version>0.4.10</version>
+    <version>0.4.11</version>
     <description>A set of plugins for Azkaban workflow manager to run jobs as groovy scripts</description>
     <url>https://github.com/SpazioDati/azkaban-groovy-plugin</url>
     <properties>
@@ -170,6 +170,20 @@
                                     <exclude>ch.qos.logback:*</exclude>
                                 </excludes>
                             </artifactSet>
+                            <filters>
+                                <filter>
+                                    <artifact> org.apache.ivy:ivy</artifact>
+                                    <excludes>
+                                        <exclude>org/apache/ivy/util/url/CredentialsStore.class</exclude>
+                                    </excludes>
+                                </filter>
+                                <filter>
+                                    <artifact>eu-spaziodati:azkaban-plugins-groovy</artifact>
+                                    <excludes>
+                                        <exclude>groovy/grape/Grape.class</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
                         </configuration>
                     </execution>
                     <execution>
@@ -193,6 +207,12 @@
                                     <artifact>eu-spaziodati:azkaban-plugins-groovy</artifact>
                                     <excludes>
                                         <exclude>org/apache/ivy/util/url/*</exclude>
+                                    </excludes>
+                                </filter>
+                                <filter>
+                                    <artifact>org.codehaus.groovy:groovy-all</artifact>
+                                    <excludes>
+                                        <exclude>groovy/grape/Grape.class</exclude>
                                     </excludes>
                                 </filter>
                             </filters>
