@@ -14,14 +14,19 @@
  * limitations under the License.
  */
 
-/*
+/**************************************************************************************************
 
     SYNCHRONIZED VERSION OF GRAPE
-    THIS IS A VERY BAD WORKAROUND TO FIX THE STUPID DESIGN OF GRAPE MECHANISM
+    THIS IS A VERY BAD WORKAROUND TO FIX THE STUPID DESIGN OF GRAPE MECHANISM:
     EACH GROOVY SCRIPT ENGINE SHOULD HAVE IT'S OWN INSTANCE OF GRAPE ENGINE,
-    A SINGLE SHARED INSTANCE IS A NON-SENSE
+    A SINGLE SHARED INSTANCE DOESN'T MAKE SENSE
+    For GroovyProcess and GroovyRemote there's no issue, because they always run on their own JVM.
+    The issue can be for Groovy jobs that use @Grab annotations: if you run concurrently this kind
+    of jobs the GrapeEngine instance is shared, and thus for some jobs it could be able to correctly
+    update the classloader with dependencies URLs, but for others, it may fail, causing a
+    ClassNotFoundError
 
- */
+ ***************************************************************************************************/
 package groovy.grape;
 
 import java.util.Collections;
