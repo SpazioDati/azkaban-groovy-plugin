@@ -25,7 +25,6 @@ import java.util.concurrent.Future
 import java.util.concurrent.ThreadFactory
 
 import com.aestasit.infrastructure.ssh.DefaultSsh
-import static groovy.lang.Closure.DELEGATE_FIRST
 
 class GroovyRemoteJob extends GroovyProcessJob {
 
@@ -50,13 +49,13 @@ class GroovyRemoteJob extends GroovyProcessJob {
                 scpOptions: new ScpOptions(opt.scpOptions)
         )
     }
-    static safeRemoteSession(SshOptions options, @DelegatesTo(strategy = DELEGATE_FIRST, value = SessionDelegate) Closure cl) {
+    static safeRemoteSession(SshOptions options, @DelegatesTo(strategy = Closure.DELEGATE_FIRST, value = SessionDelegate) Closure cl) {
         new SshDslEngine(options).remoteSession(cl)
     }
-    static sessionOptions(@DelegatesTo(strategy = DELEGATE_FIRST, value = SshOptions) Closure cl) {
+    static sessionOptions(@DelegatesTo(strategy = Closure.DELEGATE_FIRST, value = SshOptions) Closure cl) {
         def opts = cloneOptions(DefaultSsh.options)
         cl.delegate = opts
-        cl.resolveStrategy = DELEGATE_FIRST
+        cl.resolveStrategy = Closure.DELEGATE_FIRST
         cl()
         return opts
     }

@@ -7,7 +7,7 @@
     <groupId>eu-spaziodati</groupId>
     <artifactId>azkaban-plugins-groovy</artifactId>
     <packaging>jar</packaging>
-    <version>0.4.9</version>
+    <version>0.4.10</version>
     <description>A set of plugins for Azkaban workflow manager to run jobs as groovy scripts</description>
     <url>https://github.com/SpazioDati/azkaban-groovy-plugin</url>
     <properties>
@@ -21,9 +21,9 @@
         <developer>
             <name>Ugo Scaiella</name>
             <email>scaiella@spaziodati.eu</email>
+            <url>http://it.linkedin.com/in/ugoscaiella</url>
             <organization>SpazioDati</organization>
             <organizationUrl>http://spaziodati.eu</organizationUrl>
-            <url>http://it.linkedin.com/in/ugoscaiella</url>
         </developer>
     </developers>
 
@@ -185,8 +185,17 @@
                                 <excludes>
                                     <exclude>org.slf4j:slf4j-log4j12</exclude>
                                     <exclude>log4j:log4j</exclude>
+                                    <exclude>ch.qos.logback:*</exclude>
                                 </excludes>
                             </artifactSet>
+                            <filters>
+                                <filter>
+                                    <artifact>eu-spaziodati:azkaban-plugins-groovy</artifact>
+                                    <excludes>
+                                        <exclude>org/apache/ivy/util/url/*</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
                                     <resource>embedded/groovy-executor.jar</resource>

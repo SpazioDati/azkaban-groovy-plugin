@@ -63,13 +63,6 @@ All types of jobs can accepts the following properties:
   - `groovy.classpath` the list of path (separated by `:`) of folders containing other Groovy scripts or
   class definitions that maybe referenced by the main script. The current working directory is always added to this list,
   automatically
-  - `groovy.resolver.<name>` this parameter can be repeated with different `<name>` and you can define a reference to
-  a custom maven artifact repository. The difference with respect to standard Groovy `GrabResolver` annotation,
-  is that the URL can contain username and password for basic HTTP authentication that is not currently supported
-  in `GrabResolver` (you should use `~/.groovy/grapeConfig.xml` instead, but this could annoying, see
-  http://groovy-lang.org/grape.html ). So this let you define a property like this
-  `groovy.resolver.my-private-repo:https//user:password@repo.mycompany.com/nexus/content/repositories/releases/`.
-  This can be also set globally in `<azkaban-home>/conf/global.properties`
   - `groovy.forwardParameters` (*default*: `false`) if true, all parameters received by this job are automatically
   forwarded to the next jobs in the workflow, by adding them to the output. Note that even if this is set to true,
   result of the script overrides any input parameter. Additionally, the property `working.dir` and any other property
@@ -86,19 +79,9 @@ This is a job that can execute a groovy script in the same JVM of Azkaban execut
 The script is executed asynchronosly and cancel operation is fully supported, 
 so it should not be a concern for Azkaban server stability.
 
-This job accepts also:
+In addition to the common parameters listed above, this job accepts also: 
 
   - `groovy.timeout` (*default:* `0`) timeout for the script in seconds. If less than 1, timeout is disabled.
-
-*Note*: the `groovy.resolver.<name>` properties couldn't be fetched correctly if some other plugins of your
-Azkaban installation is linking Ivy.
-This because I had to change the implementation of org.apache.ivy.util.url.CredentialsStore and
-if the class has been already loaded because of some other plugin, the patch
-included in this plugin doens't apply.
-I should user jarjar to embed the patched version of Ivy, but it is too much expensive and you can always fix
-this issue by using `~/.groovy/grapeConfig.xml` file.
-This issue will never be faced for other job types, because they run on a different JVM.
-
 
 The Groovy script is executed with the following bindings (ie you can reference these variables in your script)
 
@@ -111,15 +94,14 @@ The Groovy script is executed with the following bindings (ie you can reference 
   Logger with level `INFO`.
   - `flowrunner` reference to `azkaban.execapp.FlowRunner` object that is managing this flow execution
   - `jobrunner` reference to `azkaban.execapp.JobRunner` object that is managing this job execution
-  - `onfinish` deprecated, use `azkaban.onfinish`
   - `azkaban` reference to script helper that provides some functions to interact with azkanban instance
      - `azkaban.onfinish( Closure )` excecutes the closure when flow finishes. If an error is raised by the closure,
      the status of the flow is set to `FAILED`
      - `azkaban.execute( [optional] String projectName, String flowId, [optional] Map params, [optional] ExecutionOptions options )`
      triggers the execution of the flow `flowId` from project `projectName`.
      Optionally you can pass a parameters map that will be used to set input properties for the flow, and these will
-     override any property for all jobs.
-     If the `projectName` is not provided, the same project of the running flow will be used
+     override flow parameters.
+     If the `projectName` is not provided, the same project of the running flow will be used. See below for further details
 
 One of the main advantages of this job type is the ability to interact with Azkaban configuration. 
 If used with caution, this can be very helpful. Eg. pay attention that if you execute a `System.exit(0)`, you are shutting down the Azkaban executor!
@@ -234,11 +216,22 @@ The main advantage is that you can avoid build tools to create a simple job, the
 The script binding is limited with respect to the `Groovy` job, and it includes only the `config` variable 
 containing all job parameters in a Map.
 
+In addition to the common parameters listed above, this job also accepts 
+
+  - `groovy.resolver.<name>` this parameter can be repeated with different `<name>` and you can define a reference to
+  a custom maven artifact repository. The difference with respect to standard Groovy `GrabResolver` annotation,
+  is that the URL can contain username and password for basic HTTP authentication that is not currently supported
+  in `GrabResolver` (you should use `~/.groovy/grapeConfig.xml` instead, but this could annoying, see
+  http://groovy-lang.org/grape.html ). So this let you define a property like this
+  `groovy.resolver.my-private-repo:https//user:password@repo.mycompany.com/nexus/content/repositories/releases/`.
+  This can be also set globally in `<azkaban-home>/conf/global.properties`
+
+
 #### Logging
 
 The executor jar embeds Log4J and SLF4J binding for Log4J, but doesn't embed any Log4J configuration and by default Log4J just prints out a warning message if it hasn't been initialized, discarding any log message. So, if you are using third party libraries and you need for logs, you can configure log4j programatically in your script or just put a `log4j.properties` in your working dir and add that path to the classpath or use `jvm.args` configuration property to initialize Log4J (ig `jvm.args= -Dlog4j.configuration=file://${working.dir}/log4j.properties` )
 
-### Job GroovyRemoteJob
+### Job GroovyRemote
 
 `type:GroovyRemote`
 
@@ -261,6 +254,7 @@ So basically, the only requirement on the remote machine is to have a running ss
 
 This job accepts also:
 
+ - `groovy.resolver.<name>` see `GroovyProcess` for further details
  - `groovy.remote.host` (*required*) the host of the remote machine
  - `groovy.remote.username` (*required*) the username
  - `groovy.remote.port` (*default*: `22`) the ssh connection port

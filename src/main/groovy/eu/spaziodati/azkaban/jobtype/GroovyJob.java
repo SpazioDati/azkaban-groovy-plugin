@@ -163,12 +163,12 @@ public class GroovyJob extends AbstractProcessJob {
             task = executor.submit(new Callable<Object>() {
                 @Override
                 public Object call() throws Exception {
-                    GroovyResolversConfig config = GroovyResolversConfig.fromMap(allproperties);
-                    try {
+//                    GroovyResolversConfig config = GroovyResolversConfig.fromMap(allproperties);
+//                    try {
                         return engine.run(finalScriptFile, scriptVars);
-                    } finally {
-                        config.restore();
-                    }
+//                    } finally {
+//                        config.restore();
+//                    }
                 }
             });
 
