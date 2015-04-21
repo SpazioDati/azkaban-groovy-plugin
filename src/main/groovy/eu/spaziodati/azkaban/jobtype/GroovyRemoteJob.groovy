@@ -2,6 +2,12 @@ package eu.spaziodati.azkaban.jobtype
 
 import azkaban.jobExecutor.AbstractProcessJob
 import azkaban.utils.Props
+import com.aestasit.infrastructure.ssh.DefaultSsh
+import com.aestasit.infrastructure.ssh.ExecOptions
+import com.aestasit.infrastructure.ssh.ScpOptions
+import com.aestasit.infrastructure.ssh.SshOptions
+import com.aestasit.infrastructure.ssh.dsl.SessionDelegate
+import com.aestasit.infrastructure.ssh.dsl.SshDslEngine
 import com.jcraft.jsch.JSch
 import eu.spaziodati.azkaban.JobUtils
 import eu.spaziodati.azkaban.Reflection
@@ -18,14 +24,43 @@ import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.ThreadFactory
 
-import static com.aestasit.infrastructure.ssh.DefaultSsh.*
-import static groovy.io.FileType.FILES
+import com.aestasit.infrastructure.ssh.DefaultSsh
+import static groovy.lang.Closure.DELEGATE_FIRST
 
 class GroovyRemoteJob extends GroovyProcessJob {
 
     static {
         JSch.setConfig("StrictHostKeyChecking", "no")
     }
+
+    static def cloneOptions(SshOptions opt) {
+        return new SshOptions(
+                defaultHost: opt.defaultHost,
+                defaultKeyFile: opt.defaultKeyFile,
+                defaultPassPhrase: opt.defaultPassPhrase,
+                defaultPassword: opt.defaultPassword,
+                defaultPort: opt.defaultPort,
+                defaultUser: opt.defaultUser,
+                trustUnknownHosts: opt.trustUnknownHosts,
+                reuseConnection: opt.reuseConnection,
+                verbose: opt.verbose,
+                logger: opt.logger,
+                failOnError:  opt.failOnError,
+                execOptions: new ExecOptions(opt.execOptions),
+                scpOptions: new ScpOptions(opt.scpOptions)
+        )
+    }
+    static safeRemoteSession(SshOptions options, @DelegatesTo(strategy = DELEGATE_FIRST, value = SessionDelegate) Closure cl) {
+        new SshDslEngine(options).remoteSession(cl)
+    }
+    static sessionOptions(@DelegatesTo(strategy = DELEGATE_FIRST, value = SshOptions) Closure cl) {
+        def opts = cloneOptions(DefaultSsh.options)
+        cl.delegate = opts
+        cl.resolveStrategy = DELEGATE_FIRST
+        cl()
+        return opts
+    }
+
 
     static final HOST = "groovy.remote.host"
     static final PORT = "groovy.remote.port"
@@ -134,32 +169,52 @@ class GroovyRemoteJob extends GroovyProcessJob {
                 info("Trying to connect to ${config[HOST]} ...")
 
                 //CONFIGURATION
-                trustUnknownHosts = true
-                verbose = config[VERBOSE]
-                def prefixcmd = "";
-                if (config[REMOTE_DIR] != "./") prefixcmd += "cd ${config[REMOTE_DIR]}; "
-                if (config[SUDO]) prefixcmd += "sudo "
-                execOptions { prefix = prefixcmd }
+                // Configuration in DefaultSsh is not thread-safe!!!! it is static!
+                // so we have to create on our own an SshOptions object and use that
+                // to init the SshDelegate
+//                trustUnknownHosts = true
+//                verbose = config[VERBOSE]
+//                def prefixcmd = "";
+//                if (config[REMOTE_DIR] != "./") prefixcmd += "cd ${config[REMOTE_DIR]}; "
+//                if (config[SUDO]) prefixcmd += "sudo "
+//                execOptions { prefix = prefixcmd }
+//
+//                logger = new com.aestasit.infrastructure.ssh.log.Logger() {
+//                    @Override void info(String message) {
+//                        if (!DISCARD_LOG.matcher(message).matches() )
+//                            GroovyRemoteJob.this.info("[ssh] " + message)
+//                    }
+//                    @Override void warn(String message) {
+//                        GroovyRemoteJob.this.warn("[ssh] " + message)
+//                    }
+//                    @Override void debug(String message) {
+//                        GroovyRemoteJob.this.debug("[ssh] " + message)
+//                    }
+//                }
 
-                logger = new com.aestasit.infrastructure.ssh.log.Logger() {
-                    @Override
-                    void info(String message) {
-                        if (!DISCARD_LOG.matcher(message).matches() )
-                            GroovyRemoteJob.this.info("[ssh] " + message)
+                def options = sessionOptions {
+                    trustUnknownHosts = true
+                    verbose = config[VERBOSE]
+                    def prefixcmd = "";
+                    if (config[REMOTE_DIR] != "./") prefixcmd += "cd ${config[REMOTE_DIR]}; "
+                    if (config[SUDO]) prefixcmd += "sudo "
+                    execOptions { prefix = prefixcmd }
+                    scpOptions { showProgress = false }
+                    logger = new com.aestasit.infrastructure.ssh.log.Logger() {
+                        @Override void info(String message) {
+                            if (!DISCARD_LOG.matcher(message).matches() )
+                                GroovyRemoteJob.this.info("[ssh] " + message)
+                        }
+                        @Override void warn(String message) {
+                            GroovyRemoteJob.this.warn("[ssh] " + message)
+                        }
+                        @Override void debug(String message) {
+                            GroovyRemoteJob.this.debug("[ssh] " + message)
+                        }
                     }
+                };
 
-                    @Override
-                    void warn(String message) {
-                        GroovyRemoteJob.this.warn("[ssh] " + message)
-                    }
-
-                    @Override
-                    void debug(String message) {
-                        GroovyRemoteJob.this.debug("[ssh] " + message)
-                    }
-                }
-
-                remoteSession {
+                safeRemoteSession(options) {
 
                     host = config[HOST]
                     port = config[PORT] as int
@@ -171,6 +226,7 @@ class GroovyRemoteJob extends GroovyProcessJob {
                         } else
                             keyFile = new File(config[KEY_FILE])
                     }
+
 
                     //CONNECTION
                     def attempt = 0, maxAttempt = config[RETRY] as int, delay = FIRST_DELAY
