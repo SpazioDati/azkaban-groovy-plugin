@@ -169,8 +169,9 @@ langs.each { l ->
     // set execution options, for more information about this object see
     // http://grepcode.com/file/repo1.maven.org/maven2/com.linkedin.azkaban/azkaban/2.5.0/azkaban/executor/ExecutionOptions.java
     // more documentation is available at http://azkaban.github.io/azkaban/docs/2.5/#api-execute-a-flow
-    // NOTE: currently, only disabled jobs is supported
+    // NOTE: currently, only disabled jobs and success/failure emails are supported
     opts.disabledJobs = ["job1", "job3"]
+    opts.failureEmails = ["me@acme.com"]
 
     def result = azkaban.execute(
         "download-wiki", //name of the flow
