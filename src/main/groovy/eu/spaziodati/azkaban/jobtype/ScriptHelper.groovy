@@ -61,9 +61,9 @@ public class ScriptHelper {
                 .addParameter("flow", flowid)
 
             if (options) {
-                if (options.disabledJobs)
-                    uri.addParameter("disabled", JsonOutput.toJson(options.disabledJobs))
-                // TODO add other parameters: http://azkaban.github.io/azkaban/docs/2.5/#api-execute-a-flow
+                options.toObject().each { k, v -> 
+                    uri.addParameter(k, JsonOutput.toJson(v))
+                }
             }
             if (params)
                 params.each { k,v -> uri.addParameter("flowOverride[$k]", v.toString()) }
