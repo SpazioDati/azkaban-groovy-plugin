@@ -62,7 +62,16 @@ public class ScriptHelper {
 
             if (options) {
                 if (options.disabledJobs)
-                    uri.addParameter("disabled", JsonOutput.toJson(options.disabledJobs))
+                    uri.addParameter(ExecutionOptions.DISABLE, JsonOutput.toJson(options.disabledJobs))
+                if (options.successEmails) {
+                    uri.addParameter(ExecutionOptions.SUCCESS_EMAILS, options.successEmails.join(","))
+                    uri.addParameter(ExecutionOptions.SUCCESS_EMAILS_OVERRIDE, "true")
+                }
+                if (options.failureEmails) {
+                    uri.addParameter(ExecutionOptions.FAILURE_EMAILS, options.failureEmails.join(","))
+                    uri.addParameter(ExecutionOptions.FAILURE_EMAILS_OVERRIDE, "true")
+                }
+                
                 // TODO add other parameters: http://azkaban.github.io/azkaban/docs/2.5/#api-execute-a-flow
             }
             if (params)
