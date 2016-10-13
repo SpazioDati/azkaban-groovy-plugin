@@ -1,4 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+set -eu
+set -o pipefail
 
 DISTRO=$(cat /etc/*-release | grep 'DISTRIB_CODENAME' | grep -oE '[a-z]+')
 WAIT_TIME=5
