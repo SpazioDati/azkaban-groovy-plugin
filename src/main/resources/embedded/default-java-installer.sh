@@ -27,9 +27,11 @@ echo "Our distro is $DISTRO"
 echo "deb http://ppa.launchpad.net/webupd8team/java/ubuntu $DISTRO main" | tee -a /etc/apt/sources.list
 echo "deb-src http://ppa.launchpad.net/webupd8team/java/ubuntu $DISTRO main" | tee -a /etc/apt/sources.list
 retry 3 apt-key adv --keyserver keyserver.ubuntu.com --recv-keys EEA14886
-echo "Waiting for $WAIT_TIME seconds..."
-sleep $WAIT_TIME
+
 retry 3 apt-get -q update
+echo "Waiting for $WAIT_TIME seconds after apt-get update..."
+sleep $WAIT_TIME
+
 echo oracle-java7-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections
 retry 3 apt-get -qq -y install oracle-java7-installer
 update-java-alternatives -s java-7-oracle
