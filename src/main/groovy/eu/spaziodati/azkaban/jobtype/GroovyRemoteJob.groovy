@@ -14,6 +14,7 @@ import eu.spaziodati.azkaban.Reflection
 import org.apache.commons.io.FileUtils
 import org.apache.log4j.Logger
 
+import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
@@ -105,6 +106,18 @@ class GroovyRemoteJob extends GroovyProcessJob {
         return jarpath.toString()
     }
 
+    // Make sure that remote dir is unique
+    def getRemoteDir(jobProps) {
+        def dir = jobProps.getString(REMOTE_DIR, null)
+        if (dir == null) {
+            def tempDir = File.createTempFile('azkaban-', '-default-dir')
+            tempDir.deleteOnExit()
+            return "/tmp/${tempDir.getName()}"
+        } else {
+            return dir
+        }
+    }
+
     @Override
     void run() {
 
@@ -125,8 +138,7 @@ class GroovyRemoteJob extends GroovyProcessJob {
             config[HOST] = jobProps.getString(HOST)
             config[PORT] = jobProps.getInt(PORT, 22)
             config[USERNAME] = jobProps.getString(USERNAME)
-            def defaultRemoteWorkingDir = "/tmp/azkaban-${jobProps.get('azkaban.flow.flowid')}-${jobProps.get('azkaban.flow.execid')}"
-            config[REMOTE_DIR] = jobProps.getString(REMOTE_DIR, defaultRemoteWorkingDir)
+            config[REMOTE_DIR] = getRemoteDir(jobProps)
             config[PASSWORD] = jobProps.getString(PASSWORD, "")
             config[KEY_FILE] = jobProps.getString(KEY_FILE, null)
             config[JAVA_INSTALLER] = jobProps.getString(JAVA_INSTALLER, null)
