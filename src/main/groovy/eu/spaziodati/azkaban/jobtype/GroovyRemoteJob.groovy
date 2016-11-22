@@ -23,6 +23,8 @@ import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.ThreadFactory
+import java.security.SecureRandom
+import java.math.BigInteger
 
 import com.aestasit.infrastructure.ssh.DefaultSsh
 
@@ -77,6 +79,7 @@ class GroovyRemoteJob extends GroovyProcessJob {
 
     static def DISCARD_LOG = ~/\d+ bytes transferred/
     static def FIRST_DELAY = 5
+    static def random = new SecureRandom()
 
     public GroovyRemoteJob(String jobid, Props sysProps, Props jobProps, Logger log) {
         super(jobid, sysProps, new Props(sysProps, jobProps), log)
@@ -105,6 +108,10 @@ class GroovyRemoteJob extends GroovyProcessJob {
         return jarpath.toString()
     }
 
+    String getNextRand() {
+        new BigInteger(64, random).toString(32)
+    }
+
     @Override
     void run() {
 
@@ -125,7 +132,7 @@ class GroovyRemoteJob extends GroovyProcessJob {
             config[HOST] = jobProps.getString(HOST)
             config[PORT] = jobProps.getInt(PORT, 22)
             config[USERNAME] = jobProps.getString(USERNAME)
-            def defaultRemoteWorkingDir = "/tmp/azkaban-${jobProps.get('azkaban.flow.flowid')}-${jobProps.get('azkaban.flow.execid')}"
+            def defaultRemoteWorkingDir = "/tmp/azkaban-${jobProps.get('azkaban.flow.flowid')}-${getNextRand()}"
             config[REMOTE_DIR] = jobProps.getString(REMOTE_DIR, defaultRemoteWorkingDir)
             config[PASSWORD] = jobProps.getString(PASSWORD, "")
             config[KEY_FILE] = jobProps.getString(KEY_FILE, null)
