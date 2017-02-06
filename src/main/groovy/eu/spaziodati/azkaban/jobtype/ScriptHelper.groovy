@@ -165,6 +165,10 @@ public class ScriptHelper {
             myFlowid = jobrunner.getNode().getParentFlow().getFlowId()
         }
 
+        this.onfinishFlow(myFlowid, c)
+    }
+
+    def onfinishFlow (String flowId, Closure c) {
         EventListener listener = new EventListener() {
             def done = false
             public void handleEvent(Event event) {
