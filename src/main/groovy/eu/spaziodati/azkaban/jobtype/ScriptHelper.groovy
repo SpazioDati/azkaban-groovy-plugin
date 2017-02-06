@@ -178,7 +178,7 @@ public class ScriptHelper {
                     if (event.data &&
                             event.data instanceof ExecutableFlowBase &&
                             // to match nested flows
-                            (event.data as ExecutableFlowBase).nestedId.equals(myFlowid) &&
+                            (event.data as ExecutableFlowBase).nestedId.equals(flowId) &&
                             event.runner instanceof FlowRunner) {
 
                         try {
