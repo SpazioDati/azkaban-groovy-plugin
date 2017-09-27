@@ -1,3 +1,30 @@
+   * [Azkaban Groovy Plugins](#azkaban-groovy-plugins)
+      * [Why Groovy?](#why-groovy)
+      * [Installation](#installation)
+         * [Requirements](#requirements)
+         * [Packaging](#packaging)
+         * [Deployment](#deployment)
+      * [Jobtypes](#jobtypes)
+         * [Basic properties](#basic-properties)
+         * [Groovy Job](#groovy-job)
+            * [Registering flow finish handler](#registering-flow-finish-handler)
+            * [Trigger execution of another flow](#trigger-execution-of-another-flow)
+         * [Job GroovyProcess](#job-groovyprocess)
+            * [Logging](#logging)
+         * [Job GroovyRemote](#job-groovyremote)
+            * [Workflow](#workflow)
+            * [Additional properties](#additional-properties)
+            * [Working directory](#working-directory)
+            * [Logging](#logging-1)
+      * [Control flow](#control-flow)
+         * [Evaluation](#evaluation)
+         * [Skipping](#skipping)
+         * [NOOP](#noop)
+      * [Debugging of groovy jobs](#debugging-of-groovy-jobs)
+         * [Usage](#usage)
+         * [Configuration](#configuration)
+         * [Binding](#binding)
+
 # Azkaban Groovy Plugins
 
 This is a collection of plugins for Azkaban workflow manager, for running Groovy script as Azkaban job.
@@ -24,19 +51,69 @@ I think that Groovy can efficiently replace small as well as complex bash script
 
 ## Installation
 
-Requirements
- 
+### Requirements
  - Java 7
  - Maven 3
 
-Packaging
+### Packaging
 
+First, you'll need azkaban JARs into your local maven; this is due to the fact that Linkedin is not publishing
+azkaban JARs on any central repository (apart from [version 2.5.0](https://mvnrepository.com/artifact/com.linkedin.azkaban/azkaban)).
+
+Checkout the [azkaban](https://github.com/azkaban/azkaban/) project, then edit the root `build.gradle` to enable publishing
+to your local maven:
+
+```diff
+diff --git a/build.gradle b/build.gradle
+index a048d5a..fa42bd3 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -16,6 +16,7 @@
+
+ buildscript {
+     repositories {
++        mavenLocal()
+         mavenCentral()
+         maven {
+             url 'https://plugins.gradle.org/m2/'
+@@ -115,6 +116,7 @@ ext.deps = [
+ subprojects {
+     apply plugin: 'java'
+     apply plugin: 'net.ltgt.errorprone'
++    apply plugin: 'maven-publish'
+
+     // Set the same version for all sub-projects to root project version
+     version = rootProject.version
+@@ -183,6 +185,14 @@ subprojects {
+         options.compilerArgs += ["-Werror"]
+     }
+
++    publishing {
++        publications {
++            mavenJava(MavenPublication) {
++                from components.java
++            }
++        }
++    }
++
+     /**
+      * Print test execution summary when informational logging is enabled.
+      */
+
+```
+
+Then just run (from the azkaban project root):
+```bash
+> ./gradlew publishToMavenLocal
+
+```
+
+Once done, move to the groovy-plugin folder and run:
 ```
 > mvn clean package
 ```
 
-Deployment
-
+### Deployment
  - copy `target/azkaban-groovy-plugins-{version}.jar` to `{azkaban_home}/extlib`
  - copy folder `jobtypes/` to `{azkaban_home}/plugins`
  

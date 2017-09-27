@@ -7,14 +7,14 @@
     <groupId>eu-spaziodati</groupId>
     <artifactId>azkaban-plugins-groovy</artifactId>
     <packaging>jar</packaging>
-    <version>0.4.15</version>
+    <version>0.5.0</version>
     <description>A set of plugins for Azkaban workflow manager to run jobs as groovy scripts</description>
     <url>https://github.com/SpazioDati/azkaban-groovy-plugin</url>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <groovy.version>2.4.3</groovy.version>
         <ivy.version>2.4.0</ivy.version>
-        <azkaban.version>2.5.0</azkaban.version>
+        <azkaban.version>3.35.0</azkaban.version>
     </properties>
 
     <developers>
@@ -30,6 +30,17 @@
     <scm>
         <url>https://github.com/SpazioDati/azkaban-groovy-plugin.git</url>
     </scm>
+
+    <repositories>
+        <repository>
+            <id>local-libs</id>
+            <url>file://${user.home}/.m2/repository</url>
+        </repository>
+        <repository>
+            <id>confluent.io</id>
+            <url>http://packages.confluent.io/maven/</url>
+        </repository>
+    </repositories>
 
     <dependencies>
         <dependency>
@@ -74,8 +85,26 @@
             <optional>true</optional>
         </dependency>
         <dependency>
-            <groupId>com.linkedin.azkaban</groupId>
-            <artifactId>azkaban</artifactId>
+            <groupId>com.linkedin</groupId>
+            <artifactId>azkaban-common</artifactId>
+            <version>${azkaban.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.linkedin</groupId>
+            <artifactId>azkaban-exec-server</artifactId>
+            <version>${azkaban.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.linkedin</groupId>
+            <artifactId>azkaban-web-server</artifactId>
+            <version>${azkaban.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.linkedin</groupId>
+            <artifactId>azkaban-spi</artifactId>
             <version>${azkaban.version}</version>
             <scope>provided</scope>
         </dependency>

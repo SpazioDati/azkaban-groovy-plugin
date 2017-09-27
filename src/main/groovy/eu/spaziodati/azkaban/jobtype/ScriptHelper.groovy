@@ -3,8 +3,8 @@ package eu.spaziodati.azkaban.jobtype
 import azkaban.execapp.AzkabanExecutorServer
 import azkaban.execapp.FlowRunner
 import azkaban.execapp.JobRunner
-import azkaban.execapp.event.Event
-import azkaban.execapp.event.EventListener
+import azkaban.event.Event
+import azkaban.event.EventListener
 import azkaban.executor.ExecutableFlowBase
 import azkaban.executor.ExecutionOptions
 import azkaban.executor.Status
@@ -176,18 +176,17 @@ public class ScriptHelper {
                 if (!done && event.type == Event.Type.JOB_FINISHED) {
 
                     if (event.data &&
-                            event.data instanceof ExecutableFlowBase &&
                             // to match nested flows
-                            (event.data as ExecutableFlowBase).nestedId.equals(flowId) &&
+                            event.data.nestedId == flowId &&
                             event.runner instanceof FlowRunner) {
 
                         try {
                             done = true;
                             c.call();
                         } catch (Exception e) {
-                            flowrunner.logger.error("Error during execution of onFinish handler", e);
+                            flowrunner.logger.error("Error during execution of onFinish handler");
                             flowrunner.logger.error("Switching state to FAILED");
-                            (event.getData() as ExecutableFlowBase).setStatus(Status.FAILED);
+                            throw e
                         }
                     }
                 }
