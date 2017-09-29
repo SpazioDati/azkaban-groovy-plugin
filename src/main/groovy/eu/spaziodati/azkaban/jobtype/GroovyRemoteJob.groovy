@@ -138,7 +138,7 @@ class GroovyRemoteJob extends GroovyProcessJob {
             config[KEY_FILE] = jobProps.getString(KEY_FILE, null)
             config[JAVA_INSTALLER] = jobProps.getString(JAVA_INSTALLER, null)
             config[SUDO] = jobProps.getBoolean(SUDO, false)
-            config[VERBOSE] = jobProps.getBoolean(VERBOSE, true)
+            config[VERBOSE] = jobProps.getBoolean(VERBOSE, false)
             config[SUDO_JAVA_INSTALLER] = jobProps.getBoolean(SUDO_JAVA_INSTALLER, true)
             config[CLEANUP] = jobProps.getBoolean(CLEANUP, true)
             config[INIT_SCRIPT] = jobProps.getString(INIT_SCRIPT, "")
@@ -337,7 +337,8 @@ class GroovyRemoteJob extends GroovyProcessJob {
                             launcher += "export ${it.key}='$val'\n"
                         }
                         launcher += "\n${createCommandLine()}\n"
-                        info("Created launcher script: \n" + launcher)
+                        if (config[VERBOSE])
+                            info("Created launcher script: \n" + launcher)
 
                         // launch
                         info("Running job...")

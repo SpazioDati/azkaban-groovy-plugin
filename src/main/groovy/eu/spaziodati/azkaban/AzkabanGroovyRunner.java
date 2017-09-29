@@ -21,6 +21,7 @@ public class AzkabanGroovyRunner {
 
     public static final String WORKING_DIR = "working.dir";
     // the path of the groovy script
+    public static final String GROOVY_VERBOSE = "groovy.remote.verbose";
     public static final String GROOVY_SCRIPT = "groovy.script";
     public static final String GROOVY_COMMAND = "groovy.command";
     // the list of folder containing groovy scripts
@@ -37,17 +38,23 @@ public class AzkabanGroovyRunner {
     public static void main (String[] args) throws Exception {
 
         String propertyfile = System.getenv(PROP_FILE_ENV);
+        boolean verbose;
 
         try {
             params.load(new InputStreamReader(new FileInputStream(propertyfile), StandardCharsets.UTF_8));
-            params.store(System.out, "CONFIGURATION");
+            verbose = Boolean.parseBoolean(params.getProperty(GROOVY_VERBOSE, "false"));
+
+            if (verbose)
+              params.store(System.out, "CONFIGURATION");
         } catch (Exception e) {
             throw new RuntimeException("Unable to locate configuration: " + propertyfile, e);
         }
 
         String outputfile = System.getenv(OUT_PROP_FILE_ENV);
-        if (not(outputfile)) throw new RuntimeException ("No "+OUT_PROP_FILE_ENV+" env-var has been found");
-        else System.out.println("Output will be dumped in "+outputfile);
+        if (not(outputfile))
+            throw new RuntimeException ("No "+OUT_PROP_FILE_ENV+" env-var has been found");
+        else
+            System.out.println("Output will be dumped in "+outputfile);
 
         String workdir = params.getProperty(WORKING_DIR, "./");
 
@@ -57,6 +64,7 @@ public class AzkabanGroovyRunner {
             scriptfile = params.getProperty(GROOVY_SCRIPT, null);
         else
             scriptfile = getStringParam(GROOVY_SCRIPT);
+
         if (scriptfile == null)
             scriptfile = createScriptFromCommand(commandsmap, new File(workdir), System.out);
 
