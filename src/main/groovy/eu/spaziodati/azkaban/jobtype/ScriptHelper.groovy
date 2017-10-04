@@ -4,6 +4,7 @@ import azkaban.execapp.AzkabanExecutorServer
 import azkaban.execapp.FlowRunner
 import azkaban.execapp.JobRunner
 import azkaban.event.Event
+import azkaban.spi.EventType
 import azkaban.event.EventListener
 import azkaban.executor.ExecutableFlowBase
 import azkaban.executor.ExecutionOptions
@@ -169,18 +170,21 @@ public class ScriptHelper {
     }
 
     def onfinishFlow (String flowId, Closure c) {
+        flowrunner.logger.info("Registering onFinish trigger to handle flowId `${flowId}`")
+
         EventListener listener = new EventListener() {
             def done = false
             public void handleEvent(Event event) {
 
-                if (!done && event.type == Event.Type.JOB_FINISHED) {
-
+                if (!done && event.type == EventType.JOB_FINISHED) {
+                    flowrunner.logger.info("Flow `${event.data.nestedId}` FINISHED, checking for onFinish trigger")
                     if (event.data &&
                             // to match nested flows
                             event.data.nestedId == flowId &&
                             event.runner instanceof FlowRunner) {
 
                         try {
+                            flowrunner.logger.info("Triggering onFinish closure")
                             done = true;
                             c.call();
                         } catch (Exception e) {
