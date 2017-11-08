@@ -6,22 +6,24 @@ import azkaban.execapp.JobRunner
 import azkaban.event.Event
 import azkaban.spi.EventType
 import azkaban.event.EventListener
-import azkaban.executor.ExecutableFlowBase
 import azkaban.executor.ExecutionOptions
-import azkaban.executor.Status
 import azkaban.flow.CommonJobProperties
 import azkaban.utils.Props
 import azkaban.utils.UndefinedPropertyException
 import azkaban.webapp.AzkabanWebServer
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import org.apache.http.NameValuePair
 import org.apache.http.client.HttpClient
+import org.apache.http.client.entity.UrlEncodedFormEntity
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.client.methods.HttpPost
 import org.apache.http.client.utils.URIBuilder
 import org.apache.http.impl.client.BasicResponseHandler
 import org.apache.http.impl.client.DefaultHttpClient
+import org.apache.http.message.BasicNameValuePair
 import org.apache.log4j.WriterAppender
+
 
 public class ScriptHelper {
 
@@ -93,7 +95,6 @@ public class ScriptHelper {
             try { http.getConnectionManager().shutdown();}
             catch (Exception e) {}
         }
-
     }
 
     def login(HttpClient client) {
@@ -101,13 +102,16 @@ public class ScriptHelper {
         def username = systemProp(EXECUTE_USERNAME)
         def password = systemProp(EXECUTE_PASSWORD)
 
-        def loginuri = new URIBuilder(endpoint+"/")
-                .addParameter("action", "login")
-                .addParameter("username", username)
-                .addParameter("password", password)
-                .build()
+        def postParameters = new ArrayList<NameValuePair>();
+        postParameters.add(new BasicNameValuePair("action", "login"))
+        postParameters.add(new BasicNameValuePair("username", username))
+        postParameters.add(new BasicNameValuePair("password", password))
+
+        def httpPost = new HttpPost(endpoint+"/")
+        httpPost.setEntity(new UrlEncodedFormEntity(postParameters, "UTF-8"));
+
         try {
-            def resp = client.execute(new HttpPost(loginuri), new BasicResponseHandler())
+            def resp = client.execute(httpPost, new BasicResponseHandler())
             def result = new JsonSlurper().parseText(resp)
             if (!result) throw new Exception("No body returned")
             if (result.error) throw new Exception("Login failed: "+result.error)
@@ -124,7 +128,6 @@ public class ScriptHelper {
         else if (props.containsKey(name)) return props.get(name)
         else return AzkabanExecutorServer.app.azkabanProps.get(name)
     }
-
 
     def fetchProject(String name) {
         if (AzkabanWebServer.app)
