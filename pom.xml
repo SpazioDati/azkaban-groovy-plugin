@@ -7,14 +7,14 @@
     <groupId>eu-spaziodati</groupId>
     <artifactId>azkaban-plugins-groovy</artifactId>
     <packaging>jar</packaging>
-    <version>0.5.3</version>
+    <version>0.5.4</version>
     <description>A set of plugins for Azkaban workflow manager to run jobs as groovy scripts</description>
     <url>https://github.com/SpazioDati/azkaban-groovy-plugin</url>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <groovy.version>2.4.3</groovy.version>
         <ivy.version>2.4.0</ivy.version>
-        <azkaban.version>3.35.0</azkaban.version>
+        <azkaban.version>3.38.0</azkaban.version>
     </properties>
 
     <developers>
