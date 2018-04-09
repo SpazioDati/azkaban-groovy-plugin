@@ -57,7 +57,7 @@ public class ScriptHelper {
             log("Trying to execute flow '$flowid' of project '$projectName' ...")
 
             def uri = new URIBuilder(endpoint)
-                .setPath(uri.getPath() + "/executor")
+            uri.setPath(uri.getPath() + "/executor")
                 .addParameter("session.id", sessionid)
                 .addParameter("ajax", "executeFlow")
                 .addParameter("project", projectName)
