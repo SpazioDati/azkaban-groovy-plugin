@@ -121,8 +121,8 @@ class GroovyRemoteJob extends GroovyProcessJob {
         def command = JAVA_COMMAND + " "
         command += getJVMArguments() + " "
 
-        def xms = jobProps.getString(XMS) ?: getInitialMemorySize()
-        def xmx = jobProps.getString(XMX) ?: getMaxMemorySize()
+        def xms = jobProps.getString(XMS, getInitialMemorySize())
+        def xmx = jobProps.getString(XMX, getMaxMemorySize())
 
         command += "-Xms" + xms + " "
         command += "-Xmx" + xmx + " "
