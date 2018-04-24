@@ -77,6 +77,9 @@ class GroovyRemoteJob extends GroovyProcessJob {
     static final INIT_SCRIPT = "groovy.remote.initScript"
     static final RETRY = "groovy.remote.retry"
 
+    static final XMS = "groovy.remote.xms"
+    static final XMX = "groovy.remote.xmx"
+
     static def DISCARD_LOG = ~/\d+ bytes transferred/
     static def FIRST_DELAY = 5
     static def random = new SecureRandom()
@@ -111,6 +114,25 @@ class GroovyRemoteJob extends GroovyProcessJob {
     String getNextRand() {
         new BigInteger(64, random).toString(32)
     }
+
+
+    @Override
+    String createCommandLine() {
+        def command = JAVA_COMMAND + " "
+        command += getJVMArguments() + " "
+
+        def xms = jobProps.getString(XMS) ?: getInitialMemorySize()
+        def xmx = jobProps.getString(XMX) ?: getMaxMemorySize()
+
+        command += "-Xms" + xms + " "
+        command += "-Xmx" + xmx + " "
+        command += "-cp " + createArguments(getClassPaths(), ":") + " "
+        command += getJavaClass() + " "
+        command += getMainArguments()
+
+        return command
+    }
+
 
     @Override
     void run() {
